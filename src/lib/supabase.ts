@@ -48,6 +48,7 @@ export type Profile = {
   id: string;
   display_name: string | null;
   room: string | null;
+  favorite_floor: number | null;
   registered_at: string | null;
   lang: 'hu' | 'en';
   is_admin: boolean;

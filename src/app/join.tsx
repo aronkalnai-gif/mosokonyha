@@ -1,7 +1,7 @@
 // Asked once, the first time someone picks up a key: name and room number.
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button, Eyebrow, Muted } from '../components/ui';
 import { errorText, useI18n } from '../lib/i18n';
 import { isValidSecret, ROOM_PATTERN } from '../lib/machines';
@@ -14,7 +14,7 @@ import { useLaundry } from '../state/laundry';
 
 export default function Join() {
   const { t } = useI18n();
-  const { join, registered } = useAuth();
+  const { join, registered, profile } = useAuth();
   const { pickUp } = useLaundry();
   const afterKeyChange = useAfterKeyChange();
   const params = useLocalSearchParams<{ floor?: string }>();
@@ -23,18 +23,16 @@ export default function Join() {
   // so the code is used here. From the reception link it stays stored for the
   // reception page.
   const [code] = useState(() => (floor ? takePendingQr() : peekPendingQr()));
-  const [name, setName] = useState('');
-  const [room, setRoom] = useState('');
+  // Filled in from the account (or an earlier visit), if we have them.
+  const [name, setName] = useState(profile?.display_name ?? '');
+  const [room, setRoom] = useState(profile?.room ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (registered && !busy) return <Redirect href="/" />;
-  if (!isValidSecret(code)) return <Redirect href="/" />;
 
   const valid = name.trim().length >= 2 && ROOM_PATTERN.test(room.trim());
 
   const submit = async () => {
-    if (!valid) return;
+    if (!valid || !isValidSecret(code)) return;
     setBusy(true);
     setError(null);
     try {
@@ -47,6 +45,27 @@ export default function Join() {
       setBusy(false);
     }
   };
+
+  // Name and room already known: nothing to ask, go straight on.
+  const autoSubmitted = useRef(false);
+  useEffect(() => {
+    if (autoSubmitted.current || registered || !valid || !isValidSecret(code)) return;
+    autoSubmitted.current = true;
+    submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (registered && !busy) return <Redirect href="/" />;
+  if (!isValidSecret(code)) return <Redirect href="/" />;
+
+  if (busy && autoSubmitted.current && !error) {
+    return (
+      <View style={[styles.wrap, styles.center]}>
+        <ActivityIndicator color={colors.text} />
+        <Muted>{t('processing')}</Muted>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.wrap}>
@@ -106,4 +125,5 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   error: { color: colors.danger },
+  center: { alignItems: 'center', paddingTop: 80 },
 });

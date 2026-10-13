@@ -7,6 +7,8 @@ A web page for the dorm's laundry rooms. It shows which floor's laundry key is f
 | | |
 |---|---|
 | **Looking** | Anyone with the link sees right away which floors' keys are free or taken, and since when. No login. |
+| **Account (optional)** | *Bejelentkezés* at the top lets people create an e-mail + password account or log in on another device. With an account, the name and room number are filled in automatically, so a pickup is just a scan. If someone already used the page on that phone, creating an account keeps that identity, including a key they hold. |
+| **Favourite floor** | Chosen in Settings. A banner at the top of the list shows whether that floor's key is free, with *Kulcs felvétele* or *Szólj, ha szabad*. Kept on the account across devices. |
 | **First pickup** | The first time you pick up a key you scan the QR code, then type your name and room number once. The browser remembers you; later pickups are just a scan. People who have picked up a key at least once also see who holds which key (name and room number); others only see free/taken. |
 | **Key list** | All 6 floors live: free or taken, who has the key, since when, and a bar showing how much of the 4 hours has passed. |
 | **Picking up a key** | Sign the paper form as usual. Then either tap *Kulcs felvétele* on a free floor and scan the QR code inside the page, or scan the printed QR code with the phone's camera, which opens the *Recepció* page where you tap the floor. The 4 hours start now, and the page opens your laundry room. The scan makes sure only someone at the reception can mark a key as taken. |
@@ -37,7 +39,7 @@ A web page for the dorm's laundry rooms. It shows which floor's laundry key is f
 1. Create a project at supabase.com.
 2. Enable the **pg_net** and **pg_cron** extensions (Database → Extensions).
 3. In the **SQL editor**, run `supabase/migrations/20261013000000_init.sql`. Or use the Supabase CLI: `supabase link` and then `supabase db push`.
-4. **Authentication → Sign In / Providers:** turn on **Allow anonymous sign-ins**. This is how the page keeps people "logged in" without e-mail or passwords.
+4. **Authentication → Sign In / Providers:** turn on **Allow anonymous sign-ins** (people who don't create an account) and keep **Email** enabled (for the optional e-mail + password accounts). In the Email provider, turn **Confirm email** off: otherwise every new account needs a confirmation e-mail, which needs your own SMTP server (Supabase's built-in sender only allows a few per hour).
 5. **Authentication → Rate Limits:** the default allows 30 anonymous sign-ins per hour per IP address. If the whole dorm shares one internet address, raise it (for example to 200) for the first days, when everyone joins at once.
 
 ### 2. Push notifications

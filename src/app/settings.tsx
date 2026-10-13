@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useDialog } from '../components/Dialog';
@@ -13,7 +14,7 @@ import { useLaundry } from '../state/laundry';
 
 export default function Settings() {
   const { t, lang, setLang } = useI18n();
-  const { session, profile, registered, updateProfile, leave } = useAuth();
+  const { session, profile, registered, loggedIn, email, ensureSession, updateProfile, leave } = useAuth();
   const dialog = useDialog();
   const { settings } = useLaundry();
   const push = usePushState();
@@ -26,6 +27,11 @@ export default function Settings() {
   const saveName = async () => {
     setSaving(true);
     await updateProfile({ display_name: name.trim(), room: room.trim() }).finally(() => setSaving(false));
+  };
+
+  const setFavorite = async (floor: number | null) => {
+    await ensureSession();
+    await updateProfile({ favorite_floor: floor });
   };
 
   const pushText =
@@ -43,7 +49,30 @@ export default function Settings() {
     <ScrollView contentContainerStyle={styles.page}>
       <Text style={styles.title}>{t('settings')}</Text>
 
-      {registered && (
+      <View style={styles.section}>
+        <Eyebrow>{t('account')}</Eyebrow>
+        {loggedIn ? (
+          <>
+            <Text style={styles.body}>{t('signedInAs', { email: email ?? '' })}</Text>
+            <Button small variant="secondary" style={styles.start} title={t('logOut')} onPress={leave} />
+          </>
+        ) : (
+          <>
+            <Text style={styles.body}>{t('accountPitch')}</Text>
+            <View style={styles.buttons}>
+              <Button small title={t('loginTab')} onPress={() => router.push('/login')} />
+              <Button
+                small
+                variant="secondary"
+                title={t('signupTab')}
+                onPress={() => router.push({ pathname: '/login', params: { mode: 'signup' } })}
+              />
+            </View>
+          </>
+        )}
+      </View>
+
+      {(registered || loggedIn) && (
         <View style={styles.section}>
           <View style={styles.row}>
             <View style={styles.nameCol}>
@@ -67,6 +96,27 @@ export default function Settings() {
           )}
         </View>
       )}
+
+      <View style={styles.section}>
+        <Eyebrow>{t('favoriteFloor')}</Eyebrow>
+        <Text style={styles.body}>{t('favoriteIntro')}</Text>
+        <View style={styles.pills}>
+          {[null, 1, 2, 3, 4, 5, 6].map((f) => {
+            const on = (profile?.favorite_floor ?? null) === f;
+            return (
+              <Pressable
+                key={f ?? 'none'}
+                onPress={() => setFavorite(f)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                style={({ pressed }) => [styles.pill, on && styles.pillOn, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={[styles.pillText, on && styles.pillTextOn]}>{f ?? t('none')}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
 
       <View style={styles.section}>
         <Eyebrow>{t('notifications')}</Eyebrow>
@@ -105,7 +155,7 @@ export default function Settings() {
         </Text>
       </View>
 
-      {session && (
+      {session && !loggedIn && (
         <Button
           variant="danger"
           title={t('leave')}
@@ -137,6 +187,12 @@ const styles = StyleSheet.create({
   nameCol: { flex: 1, gap: 8 },
   roomCol: { width: 100, gap: 8 },
   start: { alignSelf: 'flex-start' },
+  buttons: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  pills: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  pill: { minWidth: 40, alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9 },
+  pillOn: { backgroundColor: colors.text, borderColor: colors.text },
+  pillText: { fontSize: 14, color: colors.text },
+  pillTextOn: { color: colors.primaryText },
   segment: {
     flexDirection: 'row',
     alignSelf: 'flex-start',

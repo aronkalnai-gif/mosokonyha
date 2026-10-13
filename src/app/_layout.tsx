@@ -83,6 +83,7 @@ function Routes() {
       <Stack.Screen name="qr" options={{ title: '' }} />
       <Stack.Screen name="room" options={{ title: '' }} />
       <Stack.Screen name="settings" options={{ title: '' }} />
+      <Stack.Screen name="login" options={{ title: '' }} />
     </Stack>
   );
 }

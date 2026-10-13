@@ -12,12 +12,15 @@ import { FloorStatus } from '../lib/supabase';
 import { colors, font, radius } from '../lib/theme';
 import { useNow } from '../lib/useNow';
 import { usePushState } from '../lib/usePushState';
+import { useWatch } from '../lib/useWatch';
+import { FavoriteBanner } from '../components/FavoriteBanner';
 import { useAuth } from '../state/auth';
 import { ServerError, useLaundry } from '../state/laundry';
 
 export default function Home() {
   const { t } = useI18n();
   const { floors, myFloor, settings, refresh, loaded } = useLaundry();
+  const { loggedIn } = useAuth();
   const now = useNow(1000);
   const [refreshing, setRefreshing] = useState(false);
   const freeCount = floors.filter((f) => !f.holder_id).length;
@@ -43,6 +46,11 @@ export default function Home() {
               </Text>
             )}
           </View>
+          {!loggedIn && (
+            <Pressable onPress={() => router.push('/login')} hitSlop={10} style={styles.loginLink} accessibilityRole="link">
+              <Text style={styles.loginText}>{t('loginTab')}</Text>
+            </Pressable>
+          )}
           <Pressable
             onPress={() => router.push('/settings')}
             hitSlop={12}
@@ -53,6 +61,8 @@ export default function Home() {
             <SettingsIcon />
           </Pressable>
         </View>
+
+        <FavoriteBanner now={now} />
 
         {myFloor?.picked_up_at && (
           <View style={styles.myKey}>
@@ -86,31 +96,13 @@ export default function Home() {
 function FloorRow({ status, now, last }: { status: FloorStatus; now: number; last: boolean }) {
   const { t } = useI18n();
   const { profile } = useAuth();
-  const { myFloor, settings, watches, toggleWatch, forceReturn } = useLaundry();
+  const { myFloor, settings, forceReturn } = useLaundry();
   const dialog = useDialog();
-  const push = usePushState();
-  const [busy, setBusy] = useState(false);
+  const { watching, busy, toggle: onWatch } = useWatch(status.floor);
 
   const free = !status.holder_id;
   const mine = !!profile && status.holder_id === profile.id;
-  const watching = watches.has(status.floor);
   const washers = machinesOnFloor(status.floor).filter((m) => m.kind === 'washer').length;
-
-  const onWatch = async () => {
-    // Without notifications there is no way to tell you, so turn them on first.
-    if (!watching && push.state !== 'on') {
-      const state = await push.enable();
-      if (state !== 'on') return dialog.alert(t('notifyMe'), `${t('pushNeeded')}\n\n${pushHelp(t, state)}`);
-    }
-    setBusy(true);
-    try {
-      await toggleWatch(status.floor);
-    } catch (e) {
-      dialog.alert(errorText(t, e instanceof ServerError ? e.code : String(e)));
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const onForce = async () => {
     const ok = await dialog.confirm(
@@ -174,14 +166,6 @@ function FloorRow({ status, now, last }: { status: FloorStatus; now: number; las
   );
 }
 
-/** Explains what to do when notifications aren't on. */
-function pushHelp(t: ReturnType<typeof useI18n>['t'], state: string | null): string {
-  if (state === 'ios-install') return t('pushIosText');
-  if (state === 'denied') return t('pushDenied');
-  if (state === 'unsupported') return t('pushUnsupported');
-  return '';
-}
-
 function PushCard() {
   const { t } = useI18n();
   const { state, enable } = usePushState();
@@ -208,6 +192,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 34, fontWeight: font.light, color: colors.text, letterSpacing: -0.8 },
   summary: { fontSize: 15, color: colors.muted },
   iconButton: { padding: 8, marginTop: 6, borderRadius: 12 },
+  loginLink: { paddingVertical: 10, paddingHorizontal: 6, marginTop: 6 },
+  loginText: { fontSize: 14, color: colors.text, fontWeight: font.medium },
 
   myKey: { backgroundColor: colors.sand, borderRadius: radius, padding: 20, gap: 12 },
   myKeyFloor: { fontSize: 28, fontWeight: font.light, color: colors.text, letterSpacing: -0.5 },

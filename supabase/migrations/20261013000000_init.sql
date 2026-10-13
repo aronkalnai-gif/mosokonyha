@@ -51,15 +51,17 @@ values ('reception_qr', encode(extensions.gen_random_bytes(18), 'hex'));
 -- Profiles
 -- ---------------------------------------------------------------------------
 
--- There is no login. Anyone can see which keys are free (floor_board). The
--- first time someone picks up a key, the page signs in anonymously (Supabase
--- anonymous sign-ins) and they register with a name and room number plus the
--- code from the reception QR code (public.register). Only registered users
--- see who holds which key (floor_status).
+-- Logging in is optional. Anyone can see which keys are free (floor_board).
+-- The first time someone picks up a key, the page signs in anonymously
+-- (Supabase anonymous sign-ins, unless they already have an e-mail/password
+-- account) and they register with a name and room number plus the code from
+-- the reception QR code (public.register). Only registered users see who
+-- holds which key (floor_status).
 create table public.profiles (
   id            uuid primary key references auth.users on delete cascade,
   display_name  text check (char_length(btrim(display_name)) between 2 and 60),
   room          text check (room ~ '^[0-9A-Za-z./ -]{1,10}$'),
+  favorite_floor smallint check (favorite_floor between 1 and 6),
   registered_at timestamptz,
   lang          text not null default 'hu' check (lang in ('hu', 'en')),
   is_admin      boolean not null default false,
@@ -76,7 +78,7 @@ create policy "update own profile" on public.profiles
 
 -- Users may only change these columns (not registered_at / is_admin).
 revoke update on public.profiles from anon, authenticated;
-grant update (display_name, room, lang) on public.profiles to authenticated;
+grant update (display_name, room, favorite_floor, lang) on public.profiles to authenticated;
 
 create function private.create_profile() returns trigger
 language plpgsql security definer set search_path = '' as $$
