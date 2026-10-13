@@ -50,8 +50,8 @@ function Routes() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang, profileId]);
 
-  // Just joined at the reception (or opened its QR link): continue to the
-  // reception page to pick up or return a key.
+  // Joined after opening the reception QR link: continue to the reception
+  // page to pick a key.
   useEffect(() => {
     if (registered && pathname !== '/qr' && hasPendingQr()) router.replace('/qr');
   }, [registered, pathname]);
@@ -68,7 +68,7 @@ function Routes() {
     <Stack
       screenOptions={({ navigation }) => ({
         // Pages opened directly (e.g. from the QR link) get a way back to the list.
-        headerLeft: navigation.canGoBack() || !registered ? undefined : () => <HomeLink label={t('keys')} />,
+        headerLeft: navigation.canGoBack() ? undefined : () => <HomeLink label={t('keys')} />,
         headerStyle: { backgroundColor: colors.bg },
         headerShadowVisible: false,
         headerTintColor: colors.text,
@@ -77,17 +77,12 @@ function Routes() {
         contentStyle: { backgroundColor: colors.bg },
       })}
     >
-      <Stack.Protected guard={!registered}>
-        <Stack.Screen name="welcome" options={{ headerShown: false, title: t('appName') }} />
-        <Stack.Screen name="join" options={{ title: t('nameTitle') }} />
-      </Stack.Protected>
-      <Stack.Protected guard={registered}>
-        <Stack.Screen name="index" options={{ title: t('appName') }} />
-        <Stack.Screen name="qr" options={{ title: '' }} />
-        <Stack.Screen name="room" options={{ title: '' }} />
-        <Stack.Screen name="settings" options={{ title: '' }} />
-      </Stack.Protected>
+      <Stack.Screen name="index" options={{ title: t('appName') }} />
       <Stack.Screen name="scan" options={{ title: '' }} />
+      <Stack.Screen name="join" options={{ title: '' }} />
+      <Stack.Screen name="qr" options={{ title: '' }} />
+      <Stack.Screen name="room" options={{ title: '' }} />
+      <Stack.Screen name="settings" options={{ title: '' }} />
     </Stack>
   );
 }

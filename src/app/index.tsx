@@ -142,7 +142,8 @@ function FloorRow({ status, now, last }: { status: FloorStatus; now: number; las
 
         {!free && status.picked_up_at && (
           <>
-            <Text style={styles.holder}>{holderLabel(status.holder_name, status.holder_room)}</Text>
+            {/* Names are only shown to people who have picked up a key before. */}
+            {status.holder_name && <Text style={styles.holder}>{holderLabel(status.holder_name, status.holder_room)}</Text>}
             <KeyProgress pickedUpAt={status.picked_up_at} now={now} settings={settings} mine={mine} />
           </>
         )}

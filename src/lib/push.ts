@@ -65,7 +65,7 @@ function base64UrlToBytes(s: string): Uint8Array<ArrayBuffer> {
 }
 
 /** Call from a button press: browsers only show the permission prompt then. */
-export async function enablePush(): Promise<PushState> {
+export async function enablePush(beforeSave?: () => Promise<void>): Promise<PushState> {
   if (!supported()) return getPushState();
   // Ask first, before awaiting anything else, so Safari still sees the tap.
   const permission = await Notification.requestPermission();
@@ -76,6 +76,7 @@ export async function enablePush(): Promise<PushState> {
   const sub =
     (await reg.pushManager.getSubscription()) ??
     (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlToBytes(VAPID_PUBLIC_KEY) }));
+  await beforeSave?.();
   await save(sub);
   return 'on';
 }

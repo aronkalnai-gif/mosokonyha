@@ -1,6 +1,6 @@
 // Reception page: opened by scanning the printed QR code with the phone's
 // camera (the code is a link to /qr?c=<secret>).
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button, Muted, Status } from '../components/ui';
@@ -9,9 +9,21 @@ import { errorText, useI18n } from '../lib/i18n';
 import { holderLabel, isValidSecret } from '../lib/machines';
 import { colors, font, radius } from '../lib/theme';
 import { ServerError, useLaundry } from '../state/laundry';
-import { takePendingQr } from '../lib/pendingQr';
+import { setPendingQr, takePendingQr } from '../lib/pendingQr';
+import { useAuth } from '../state/auth';
 
 export default function Qr() {
+  const { registered } = useAuth();
+  const params = useLocalSearchParams<{ c?: string }>();
+  // First time: ask for a name and room number first, then come back here.
+  if (!registered) {
+    if (isValidSecret(params.c)) setPendingQr(params.c);
+    return <Redirect href="/join" />;
+  }
+  return <Picker />;
+}
+
+function Picker() {
   const { t } = useI18n();
   const afterKeyChange = useAfterKeyChange();
   const params = useLocalSearchParams<{ c?: string }>();

@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import {
   Checkout,
@@ -35,37 +35,58 @@ async function rpc<R>(fn: string, args: Record<string, unknown>): Promise<R> {
   return data as R;
 }
 
+type BoardRow = { floor: number; taken: boolean; picked_up_at: string | null };
+
+/** The public board has no names; shape it like a floor_status row. */
+const fromBoard = (r: BoardRow): FloorStatus => ({
+  floor: r.floor,
+  holder_id: r.taken ? 'someone' : null,
+  holder_name: null,
+  holder_room: null,
+  picked_up_at: r.picked_up_at,
+  checkout_id: null,
+});
+
 export function LaundryProvider({ children }: { children: ReactNode }) {
-  const { session, registered } = useAuth();
+  const { session, registered, ensureSession } = useAuth();
   const userId = session?.user.id;
   const [floors, setFloors] = useState<FloorStatus[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [watches, setWatches] = useState<Set<number>>(new Set());
   const [loaded, setLoaded] = useState(false);
 
+  // Everyone sees the public board; people who have picked up a key before
+  // (registered) see who holds which key.
+  const table = registered ? 'floor_status' : 'floor_board';
+  // Read at call time: a refresh started just before joining must not load the
+  // name-less board after the full list.
+  const tableRef = useRef(table);
+  tableRef.current = table;
+
   const refresh = useCallback(async () => {
+    const table = tableRef.current;
     const [f, s, w] = await Promise.all([
-      supabase.from('floor_status').select('*').order('floor'),
+      supabase.from(table).select('*').order('floor'),
       supabase.from('app_settings').select('key_minutes, fee_huf, fee_block_minutes, grace_minutes').single(),
-      supabase.from('free_watchers').select('floor'),
+      userId ? supabase.from('free_watchers').select('floor') : Promise.resolve({ data: [] as { floor: number }[] }),
     ]);
-    if (f.data) setFloors(f.data);
+    if (f.data && table === tableRef.current) {
+      setFloors(table === 'floor_board' ? (f.data as BoardRow[]).map(fromBoard) : f.data);
+      setLoaded(true);
+    }
     if (s.data) setSettings(s.data);
-    if (w.data) setWatches(new Set(w.data.map((r) => r.floor)));
-    if (f.data) setLoaded(true);
-  }, []);
+    if (w.data) setWatches(new Set(w.data.map((r: { floor: number }) => r.floor)));
+  }, [table, userId]); // eslint-disable-line react-hooks/exhaustive-deps -- table: reload when it changes
 
   useEffect(() => {
-    // Only registered users may see the keys.
-    if (!userId || !registered) return;
     refresh();
 
     // Live updates whenever any key is picked up or returned.
     const channel = supabase
-      .channel('floor_status')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'floor_status' }, (payload) => {
-        const row = payload.new as FloorStatus;
-        if (!row?.floor) return;
+      .channel(table)
+      .on('postgres_changes', { event: '*', schema: 'public', table }, (payload) => {
+        if (!(payload.new as { floor?: number })?.floor) return;
+        const row = table === 'floor_board' ? fromBoard(payload.new as BoardRow) : (payload.new as FloorStatus);
         setFloors((prev) => prev.map((f) => (f.floor === row.floor ? row : f)));
         // Watches are removed server-side when a key frees up or you take it.
         if (!row.holder_id || row.holder_id === userId) {
@@ -85,7 +106,7 @@ export function LaundryProvider({ children }: { children: ReactNode }) {
       sub.remove();
       supabase.removeChannel(channel);
     };
-  }, [userId, registered, refresh]);
+  }, [table, userId, refresh]);
 
   const myFloor = useMemo(() => floors.find((f) => f.holder_id && f.holder_id === userId), [floors, userId]);
 
@@ -118,6 +139,7 @@ export function LaundryProvider({ children }: { children: ReactNode }) {
   const toggleWatch = useCallback(
     async (floor: number) => {
       const on = watches.has(floor);
+      await ensureSession();
       const { error } = on
         ? await supabase.from('free_watchers').delete().eq('floor', floor)
         : await supabase.from('free_watchers').insert({ floor });
@@ -129,7 +151,7 @@ export function LaundryProvider({ children }: { children: ReactNode }) {
         return next;
       });
     },
-    [watches],
+    [watches, ensureSession],
   );
 
   return (

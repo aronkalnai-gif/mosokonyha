@@ -6,9 +6,10 @@ A web page for the dorm's laundry rooms. It shows which floor's laundry key is f
 
 | | |
 |---|---|
-| **Joining** | No login and no password. On the first visit you scan the QR code at the reception and type your name and room number, and that's it. The browser remembers you from then on. Without scanning the code nobody can see the list, so only people who've been at the reception can use it. |
+| **Looking** | Anyone with the link sees right away which floors' keys are free or taken, and since when. No login. |
+| **First pickup** | The first time you pick up a key you scan the QR code, then type your name and room number once. The browser remembers you; later pickups are just a scan. People who have picked up a key at least once also see who holds which key (name and room number); others only see free/taken. |
 | **Key list** | All 6 floors live: free or taken, who has the key, since when, and a bar showing how much of the 4 hours has passed. |
-| **Picking up a key** | Sign the paper form as usual, and scan the printed QR code at the reception with the phone's camera. It opens the page's *Recepció* screen; tap the floor whose key you're taking. The 4 hours start now, and the page opens your laundry room. You can also tap *Kulcs felvétele* on a floor and scan inside the page. The scan makes sure only someone at the reception can mark a key as taken. |
+| **Picking up a key** | Sign the paper form as usual. Then either tap *Kulcs felvétele* on a free floor and scan the QR code inside the page, or scan the printed QR code with the phone's camera, which opens the *Recepció* page where you tap the floor. The 4 hours start now, and the page opens your laundry room. The scan makes sure only someone at the reception can mark a key as taken. |
 | **Returning a key** | Scan the same QR code again and tap *Kulcs visszaadása*. The key shows as free for everyone, and you see whether you went over time and the fee. |
 | **Overtime** | After 4 hours the page shows how long you're over and the fee: 500 Ft for every **started** 30 minutes. |
 | **Laundry room** | While you hold a key, you see the machines of your floor: 2 washers and 1 dryer, or 1 washer and 1 dryer on the 4th floor. Tap a machine to start a countdown timer. |

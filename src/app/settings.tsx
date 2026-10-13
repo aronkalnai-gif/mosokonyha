@@ -13,7 +13,7 @@ import { useLaundry } from '../state/laundry';
 
 export default function Settings() {
   const { t, lang, setLang } = useI18n();
-  const { profile, updateProfile, leave } = useAuth();
+  const { session, profile, registered, updateProfile, leave } = useAuth();
   const dialog = useDialog();
   const { settings } = useLaundry();
   const push = usePushState();
@@ -43,19 +43,30 @@ export default function Settings() {
     <ScrollView contentContainerStyle={styles.page}>
       <Text style={styles.title}>{t('settings')}</Text>
 
-      <View style={styles.section}>
-        <View style={styles.row}>
-          <View style={styles.nameCol}>
-            <Eyebrow>{t('displayName')}</Eyebrow>
-            <TextInput style={styles.input} value={name} onChangeText={setName} maxLength={60} />
+      {registered && (
+        <View style={styles.section}>
+          <View style={styles.row}>
+            <View style={styles.nameCol}>
+              <Eyebrow>{t('displayName')}</Eyebrow>
+              <TextInput style={styles.input} value={name} onChangeText={setName} maxLength={60} />
+            </View>
+            <View style={styles.roomCol}>
+              <Eyebrow>{t('roomLabel')}</Eyebrow>
+              <TextInput style={styles.input} value={room} onChangeText={setRoom} maxLength={10} inputMode="numeric" />
+            </View>
           </View>
-          <View style={styles.roomCol}>
-            <Eyebrow>{t('roomLabel')}</Eyebrow>
-            <TextInput style={styles.input} value={room} onChangeText={setRoom} maxLength={10} inputMode="numeric" />
-          </View>
+          {changed && (
+            <Button
+              small
+              style={styles.start}
+              title={t('save')}
+              onPress={saveName}
+              loading={saving}
+              disabled={!valid}
+            />
+          )}
         </View>
-        {changed && <Button small style={styles.start} title={t('save')} onPress={saveName} loading={saving} disabled={!valid} />}
-      </View>
+      )}
 
       <View style={styles.section}>
         <Eyebrow>{t('notifications')}</Eyebrow>
@@ -75,7 +86,9 @@ export default function Settings() {
         <View style={styles.segment}>
           {(['hu', 'en'] as const).map((l) => (
             <Pressable key={l} onPress={() => setLang(l)} style={[styles.segmentItem, lang === l && styles.segmentOn]}>
-              <Text style={[styles.segmentText, lang === l && styles.segmentTextOn]}>{l === 'hu' ? 'Magyar' : 'English'}</Text>
+              <Text style={[styles.segmentText, lang === l && styles.segmentTextOn]}>
+                {l === 'hu' ? 'Magyar' : 'English'}
+              </Text>
             </Pressable>
           ))}
         </View>
@@ -92,13 +105,15 @@ export default function Settings() {
         </Text>
       </View>
 
-      <Button
-        variant="danger"
-        title={t('leave')}
-        onPress={async () => {
-          if (await dialog.confirm(t('leave'), t('leaveConfirm'), t('leave'), true)) leave();
-        }}
-      />
+      {session && (
+        <Button
+          variant="danger"
+          title={t('leave')}
+          onPress={async () => {
+            if (await dialog.confirm(t('leave'), t('leaveConfirm'), t('leave'), true)) leave();
+          }}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -122,7 +137,14 @@ const styles = StyleSheet.create({
   nameCol: { flex: 1, gap: 8 },
   roomCol: { width: 100, gap: 8 },
   start: { alignSelf: 'flex-start' },
-  segment: { flexDirection: 'row', alignSelf: 'flex-start', borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 3 },
+  segment: {
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 3,
+  },
   segmentItem: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9 },
   segmentOn: { backgroundColor: colors.text },
   segmentText: { fontSize: 14, color: colors.text },

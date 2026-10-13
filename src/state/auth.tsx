@@ -4,9 +4,10 @@ import { forgetThisBrowser, resyncPush } from '../lib/push';
 import { errorCode, Profile, supabase } from '../lib/supabase';
 import { ServerError } from './errors';
 
-// There is no login. The page signs in anonymously (the session is kept in
-// the browser), and the user registers once with a name and the code from the
-// reception QR code (plus a room number).
+// There is no login. Anyone can look at the keys. When someone first needs an
+// account (to pick up a key, or to be notified), the page signs in
+// anonymously (the session is kept in the browser). Picking up a key also
+// needs a name and room number, given once (public.register).
 type Auth = {
   session: Session | null;
   profile: Profile | null;
@@ -14,6 +15,8 @@ type Auth = {
   /** True until we know whether there is a session (and its profile). */
   loading: boolean;
   join: (name: string, room: string, code: string) => Promise<void>;
+  /** Signs in anonymously if needed (e.g. to save notification settings). */
+  ensureSession: () => Promise<void>;
   updateProfile: (patch: Partial<Pick<Profile, 'display_name' | 'room' | 'lang'>>) => Promise<void>;
   /** Forgets this browser's identity; joining again needs the QR code. */
   leave: () => Promise<void>;
@@ -55,18 +58,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     resyncPush().catch((e) => console.warn('Push', e));
   }, [userId]);
 
+  const ensureSession = useCallback(async () => {
+    if (session) return;
+    const { error } = await supabase.auth.signInAnonymously();
+    if (error) throw new ServerError(error.message);
+  }, [session]);
+
   const join = useCallback<Auth['join']>(
     async (name, room, code) => {
-      if (!session) {
-        const { error } = await supabase.auth.signInAnonymously();
-        if (error) throw new ServerError(error.message);
-      }
+      await ensureSession();
       const { data, error } = await supabase.rpc('register', { p_name: name, p_room: room, p_code: code });
       if (error) throw new ServerError(errorCode(error));
       setProfile(data);
       setProfileLoaded(true);
     },
-    [session],
+    [ensureSession],
   );
 
   const updateProfile = useCallback<Auth['updateProfile']>(
@@ -87,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loading = !sessionLoaded || (!!session && !profileLoaded);
   const registered = !!profile?.registered_at;
   return (
-    <AuthContext.Provider value={{ session, profile, registered, loading, join, updateProfile, leave }}>
+    <AuthContext.Provider value={{ session, profile, registered, loading, join, ensureSession, updateProfile, leave }}>
       {children}
     </AuthContext.Provider>
   );

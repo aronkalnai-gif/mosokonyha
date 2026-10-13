@@ -11,12 +11,11 @@ const hu = {
   back: 'Vissza',
 
   // Joining
-  welcomeIntro: 'Nézd meg, melyik emelet mosókonyha-kulcsa szabad. A kezdéshez olvasd be a recepción kihelyezett QR-kódot.',
-  welcomeScan: 'QR-kód beolvasása',
-  welcomeCameraTip: 'A telefonod kamera-appjával is beolvashatod – az megnyitja ezt az oldalt.',
-  joinButton: 'Kezdés',
+  joinButton: 'Tovább',
+  joinTitleFloor: '{floor}. emeleti kulcs',
+  joinAndPickUp: 'Kulcs felvétele',
   nameTitle: 'Ki vagy?',
-  nameIntro: 'A neved és a szobaszámod látják a többiek, amíg nálad van egy kulcs – mint a recepciós füzetben.',
+  nameIntro: 'Csak az első alkalommal kell megadnod. A neved és a szobaszámod látják a többiek, amíg nálad van a kulcs – mint a recepciós füzetben.',
   namePlaceholder: 'Teljes név',
   roomLabel: 'Szobaszám',
   roomPlaceholder: 'pl. 312',
@@ -141,13 +140,12 @@ const en: Dict = {
   back: 'Back',
 
 
-  welcomeIntro: "See which floor's laundry key is free. To start, scan the QR code at the reception.",
-  welcomeScan: 'Scan QR code',
-  welcomeCameraTip: "You can also scan it with your phone's camera app – it opens this page.",
-  joinButton: 'Start',
+  joinButton: 'Continue',
+  joinTitleFloor: 'Floor {floor} key',
+  joinAndPickUp: 'Pick up key',
 
   nameTitle: 'Who are you?',
-  nameIntro: 'Others see your name and room number while you hold a key – just like in the reception notebook.',
+  nameIntro: 'Only needed the first time. Others see your name and room number while you hold the key – just like in the reception notebook.',
   namePlaceholder: 'Full name',
   roomLabel: 'Room',
   roomPlaceholder: 'e.g. 312',

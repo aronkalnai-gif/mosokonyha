@@ -1,8 +1,8 @@
 -- Mosókonyha – initial schema
 --
 -- Model:
---   * No login: users sign in anonymously and register with a name plus the
---     code from the reception QR code (public.register).
+--   * No login: anyone sees which keys are free (floor_board); users register
+--     with a name and room number when they first pick up a key.
 --   * Each floor has exactly one laundry-room key (floor_status row).
 --   * A user picks up a key by scanning the printed QR code at the reception
 --     (checkout_key) and returns it by scanning the same QR code again
@@ -36,7 +36,8 @@ insert into public.app_settings default values;
 
 alter table public.app_settings enable row level security;
 create policy "everyone reads settings" on public.app_settings
-  for select to authenticated using (true);
+  for select to anon, authenticated using (true);
+grant select on public.app_settings to anon;
 
 -- Secret part of the printed QR code. Never exposed through the API.
 create table private.secrets (
@@ -50,10 +51,11 @@ values ('reception_qr', encode(extensions.gen_random_bytes(18), 'hex'));
 -- Profiles
 -- ---------------------------------------------------------------------------
 
--- There is no login: the page signs in anonymously (Supabase anonymous
--- sign-ins), and the user becomes "registered" by entering a name together
--- with the code from the reception QR code (public.register). Only
--- registered users can see the keys.
+-- There is no login. Anyone can see which keys are free (floor_board). The
+-- first time someone picks up a key, the page signs in anonymously (Supabase
+-- anonymous sign-ins) and they register with a name and room number plus the
+-- code from the reception QR code (public.register). Only registered users
+-- see who holds which key (floor_status).
 create table public.profiles (
   id            uuid primary key references auth.users on delete cascade,
   display_name  text check (char_length(btrim(display_name)) between 2 and 60),
@@ -125,6 +127,33 @@ end $$;
 create trigger sync_holder_name after update of display_name, room on public.profiles
   for each row execute function private.sync_holder_name();
 
+-- What everyone sees without having picked up a key yet: free or taken, and
+-- since when, but no names. Kept in step with floor_status by a trigger.
+create table public.floor_board (
+  floor        smallint primary key references public.floor_status,
+  taken        boolean not null default false,
+  picked_up_at timestamptz
+);
+insert into public.floor_board (floor) select floor from public.floor_status;
+
+alter table public.floor_board enable row level security;
+create policy "anyone sees which keys are free" on public.floor_board
+  for select to anon, authenticated using (true);
+grant select on public.floor_board to anon;
+revoke insert, update, delete on public.floor_board from anon, authenticated;
+
+create function private.sync_floor_board() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  update public.floor_board
+     set taken = new.holder_id is not null, picked_up_at = new.picked_up_at
+   where floor = new.floor;
+  return null;
+end $$;
+
+create trigger sync_floor_board after update on public.floor_status
+  for each row execute function private.sync_floor_board();
+
 -- History of every pickup (one row per pickup).
 create table public.key_checkouts (
   id                bigint generated always as identity primary key,
@@ -154,7 +183,7 @@ alter table public.free_watchers enable row level security;
 create policy "manage own watches" on public.free_watchers
   for all to authenticated
   using (user_id = (select auth.uid()))
-  with check (user_id = (select auth.uid()) and (select public.is_registered()));
+  with check (user_id = (select auth.uid()));
 
 -- ---------------------------------------------------------------------------
 -- Machine timers
@@ -298,7 +327,7 @@ create function public.save_push_subscription(p_endpoint text, p_p256dh text, p_
 returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  if not public.is_registered() then raise exception 'not_registered'; end if;
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
   insert into public.push_subscriptions (endpoint, user_id, p256dh, auth)
   values (p_endpoint, auth.uid(), p_p256dh, p_auth)
   on conflict (endpoint) do update
@@ -529,7 +558,7 @@ grant execute on function public.claim_due_pushes(),
 do $$
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
-    alter publication supabase_realtime add table public.floor_status;
+    alter publication supabase_realtime add table public.floor_status, public.floor_board;
   end if;
 end $$;
 
