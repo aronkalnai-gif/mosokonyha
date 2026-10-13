@@ -1,6 +1,7 @@
 import { router, Stack } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { DurationPicker } from '../components/DurationPicker';
 import { KeyProgress } from '../components/KeyProgress';
 import { Button, Card, Muted, ProgressBar } from '../components/ui';
 import { errorText, useI18n } from '../lib/i18n';
@@ -181,7 +182,9 @@ function TimerSheet({
         {running ? (
           <>
             <Text style={styles.bigTime}>{formatDuration(timer.endsAt - now)}</Text>
+            <Text style={styles.finishes}>🔔 {t('finishesAt', { time: formatClock(new Date(timer.endsAt)) })}</Text>
             <View style={styles.row}>
+              <Button style={styles.flex} variant="secondary" title={t('add1')} onPress={() => act(() => extend(machine, 1))} />
               <Button style={styles.flex} variant="secondary" title={t('add5')} onPress={() => act(() => extend(machine, 5))} />
               <Button
                 style={styles.flex}
@@ -204,11 +207,15 @@ function TimerSheet({
                 </Pressable>
               ))}
             </View>
-            <View style={styles.stepper}>
-              <Button small variant="secondary" title="−5" onPress={() => setMinutes((m) => Math.max(5, m - 5))} />
-              <Text style={styles.bigTime}>{t('minutes', { n: minutes })}</Text>
-              <Button small variant="secondary" title="+5" onPress={() => setMinutes((m) => Math.min(300, m + 5))} />
-            </View>
+            <DurationPicker
+              minutes={minutes}
+              onChange={setMinutes}
+              hoursLabel={t('hoursUnit')}
+              minutesLabel={t('minutesUnit')}
+            />
+            <Text style={styles.finishes}>
+              {minutes > 0 ? `🔔 ${t('finishesAt', { time: formatClock(new Date(now + minutes * 60_000)) })}` : ' '}
+            </Text>
             {timer && (
               <Button variant="ghost" title={t('stop')} onPress={() => act(() => stop(machine), true)} />
             )}
@@ -216,6 +223,7 @@ function TimerSheet({
               title={t('start')}
               onPress={() => act(() => start(machine, minutes), true)}
               loading={busy}
+              disabled={minutes < 1}
             />
           </>
         )}
@@ -287,7 +295,7 @@ const styles = StyleSheet.create({
   presetOn: { borderColor: colors.primary, backgroundColor: '#E3F2FD' },
   presetText: { color: colors.text, fontWeight: '600' },
   presetTextOn: { color: colors.primary },
-  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  finishes: { textAlign: 'center', color: colors.muted, fontSize: 15 },
   bigTime: { fontSize: 30, fontWeight: '800', color: colors.text, textAlign: 'center', fontVariant: ['tabular-nums'] },
   row: { flexDirection: 'row', gap: 10 },
   flex: { flex: 1 },
