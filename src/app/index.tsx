@@ -5,7 +5,7 @@ import { useDialog } from '../components/Dialog';
 import { KeyProgress } from '../components/KeyProgress';
 import { Button, Card, Muted, Pill } from '../components/ui';
 import { errorText, useI18n } from '../lib/i18n';
-import { machinesOnFloor } from '../lib/machines';
+import { holderLabel, machinesOnFloor } from '../lib/machines';
 import { FloorStatus } from '../lib/supabase';
 import { colors } from '../lib/theme';
 import { useNow } from '../lib/useNow';
@@ -106,7 +106,7 @@ function FloorCard({ status, now }: { status: FloorStatus; now: number }) {
   const onForce = async () => {
     const ok = await dialog.confirm(
       t('forceReturn'),
-      t('forceReturnConfirm', { floor: status.floor, name: status.holder_name ?? '' }),
+      t('forceReturnConfirm', { floor: status.floor, name: holderLabel(status.holder_name, status.holder_room) }),
       t('forceReturn'),
       true,
     );
@@ -131,7 +131,7 @@ function FloorCard({ status, now }: { status: FloorStatus; now: number }) {
       {!free && status.picked_up_at && (
         <>
           <Text style={styles.holder}>
-            🔑 {status.holder_name}
+            🔑 {holderLabel(status.holder_name, status.holder_room)}
             {mine ? ` (${t('you')})` : ''}
           </Text>
           <KeyProgress pickedUpAt={status.picked_up_at} now={now} settings={settings} mine={mine} />

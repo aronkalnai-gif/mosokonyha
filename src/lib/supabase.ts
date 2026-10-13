@@ -29,6 +29,7 @@ export type FloorStatus = {
   floor: number;
   holder_id: string | null;
   holder_name: string | null;
+  holder_room: string | null;
   picked_up_at: string | null;
   checkout_id: number | null;
 };
@@ -46,6 +47,7 @@ export type Checkout = {
 export type Profile = {
   id: string;
   display_name: string | null;
+  room: string | null;
   registered_at: string | null;
   lang: 'hu' | 'en';
   is_admin: boolean;

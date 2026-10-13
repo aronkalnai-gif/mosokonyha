@@ -6,15 +6,15 @@ import { ServerError } from './errors';
 
 // There is no login. The page signs in anonymously (the session is kept in
 // the browser), and the user registers once with a name and the code from the
-// reception QR code.
+// reception QR code (plus a room number).
 type Auth = {
   session: Session | null;
   profile: Profile | null;
   registered: boolean;
   /** True until we know whether there is a session (and its profile). */
   loading: boolean;
-  join: (name: string, code: string) => Promise<void>;
-  updateProfile: (patch: Partial<Pick<Profile, 'display_name' | 'lang'>>) => Promise<void>;
+  join: (name: string, room: string, code: string) => Promise<void>;
+  updateProfile: (patch: Partial<Pick<Profile, 'display_name' | 'room' | 'lang'>>) => Promise<void>;
   /** Forgets this browser's identity; joining again needs the QR code. */
   leave: () => Promise<void>;
 };
@@ -56,12 +56,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [userId]);
 
   const join = useCallback<Auth['join']>(
-    async (name, code) => {
+    async (name, room, code) => {
       if (!session) {
         const { error } = await supabase.auth.signInAnonymously();
         if (error) throw new ServerError(error.message);
       }
-      const { data, error } = await supabase.rpc('register', { p_name: name, p_code: code });
+      const { data, error } = await supabase.rpc('register', { p_name: name, p_room: room, p_code: code });
       if (error) throw new ServerError(errorCode(error));
       setProfile(data);
       setProfileLoaded(true);

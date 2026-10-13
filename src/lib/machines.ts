@@ -30,6 +30,14 @@ export function parseReceptionQr(data: string): string | null {
   return m && SECRET.test(m[1]) ? m[1] : null;
 }
 
+/** Room numbers like "312", "4/12" or "B 204". */
+export const ROOM_PATTERN = /^[0-9A-Za-z./ -]{1,10}$/;
+
+/** "Kovács Bence · 312" */
+export function holderLabel(name: string | null, room: string | null): string {
+  return room ? `${name ?? ''} · ${room}` : name ?? '';
+}
+
 export function isValidSecret(code: string | null | undefined): code is string {
   return !!code && SECRET.test(code);
 }

@@ -6,7 +6,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button, Card, Muted } from '../components/ui';
 import { useAfterKeyChange } from '../lib/useAfterKeyChange';
 import { errorText, useI18n } from '../lib/i18n';
-import { isValidSecret } from '../lib/machines';
+import { holderLabel, isValidSecret } from '../lib/machines';
 import { colors } from '../lib/theme';
 import { ServerError, useLaundry } from '../state/laundry';
 import { takePendingQr } from '../lib/pendingQr';
@@ -58,7 +58,7 @@ export default function Qr() {
             f.holder_id ? (
               <View key={f.floor} style={styles.taken}>
                 <Text style={styles.takenFloor}>{t('floor', { floor: f.floor })}</Text>
-                <Muted>{t('qrTakenBy', { name: f.holder_name ?? '' })}</Muted>
+                <Muted>{t('qrTakenBy', { name: holderLabel(f.holder_name, f.holder_room) })}</Muted>
               </View>
             ) : (
               <Button

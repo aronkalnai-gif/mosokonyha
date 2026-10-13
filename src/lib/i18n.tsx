@@ -14,9 +14,11 @@ const hu = {
   welcomeScan: 'QR-kód beolvasása',
   welcomeCameraTip: 'A telefonod kamera-appjával is beolvashatod – az megnyitja ezt az oldalt.',
   joinButton: 'Kezdés',
-  nameTitle: 'Hogy hívnak?',
-  nameIntro: 'Ez a név jelenik meg a többieknek, amíg nálad van egy kulcs (mint a recepciós füzetben).',
+  nameTitle: 'Ki vagy?',
+  nameIntro: 'A neved és a szobaszámod látják a többiek, amíg nálad van egy kulcs – mint a recepciós füzetben.',
   namePlaceholder: 'Teljes név',
+  roomLabel: 'Szobaszám',
+  roomPlaceholder: 'pl. 312',
 
   // Home
   myKey: 'Nálad lévő kulcs',
@@ -97,7 +99,7 @@ const hu = {
   // Settings
   settings: 'Beállítások',
   language: 'Nyelv',
-  displayName: 'Megjelenített név',
+  displayName: 'Név',
   notifications: 'Értesítések',
   rules: 'Szabályok',
   leave: 'Kilépés ezen az eszközön',
@@ -112,6 +114,7 @@ const hu = {
   err_not_admin: 'Ehhez nincs jogosultságod.',
   err_not_registered: 'Előbb olvasd be a recepción lévő QR-kódot.',
   err_invalid_name: 'A név 2–60 karakter legyen.',
+  err_invalid_room: 'Adj meg egy szobaszámot (pl. 312).',
   err_floor_already_free: 'Ez a kulcs már szabad.',
   err_unknown: 'Hiba történt: {msg}',
 };
@@ -133,9 +136,11 @@ const en: Dict = {
   welcomeCameraTip: "You can also scan it with your phone's camera app – it opens this page.",
   joinButton: 'Start',
 
-  nameTitle: "What's your name?",
-  nameIntro: 'Others will see this name while you hold a key (just like in the reception notebook).',
+  nameTitle: 'Who are you?',
+  nameIntro: 'Others see your name and room number while you hold a key – just like in the reception notebook.',
   namePlaceholder: 'Full name',
+  roomLabel: 'Room',
+  roomPlaceholder: 'e.g. 312',
 
   myKey: 'Your key',
   floor: 'Floor {floor}',
@@ -210,7 +215,7 @@ const en: Dict = {
 
   settings: 'Settings',
   language: 'Language',
-  displayName: 'Display name',
+  displayName: 'Name',
   notifications: 'Notifications',
   rules: 'Rules',
   leave: 'Leave on this device',
@@ -224,6 +229,7 @@ const en: Dict = {
   err_not_admin: "You're not allowed to do this.",
   err_not_registered: 'Scan the QR code at the reception first.',
   err_invalid_name: 'The name must be 2–60 characters.',
+  err_invalid_room: 'Enter a room number (e.g. 312).',
   err_floor_already_free: 'This key is already free.',
   err_unknown: 'Something went wrong: {msg}',
 };

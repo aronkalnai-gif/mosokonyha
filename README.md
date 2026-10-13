@@ -6,7 +6,7 @@ A web page for the dorm's laundry rooms. It shows which floor's laundry key is f
 
 | | |
 |---|---|
-| **Joining** | No login and no password. On the first visit you scan the QR code at the reception and type your name, and that's it. The browser remembers you from then on. Without scanning the code nobody can see the list, so only people who've been at the reception can use it. |
+| **Joining** | No login and no password. On the first visit you scan the QR code at the reception and type your name and room number, and that's it. The browser remembers you from then on. Without scanning the code nobody can see the list, so only people who've been at the reception can use it. |
 | **Key list** | All 6 floors live: free or taken, who has the key, since when, and a bar showing how much of the 4 hours has passed. |
 | **Picking up a key** | Sign the paper form as usual, and scan the printed QR code at the reception with the phone's camera. It opens the page's *Recepció* screen; tap the floor whose key you're taking. The 4 hours start now, and the page opens your laundry room. You can also tap *Kulcs felvétele* on a floor and scan inside the page. The scan makes sure only someone at the reception can mark a key as taken. |
 | **Returning a key** | Scan the same QR code again and tap *Kulcs visszaadása*. The key shows as free for everyone, and you see whether you went over time and the fee. |

@@ -57,11 +57,12 @@ values ('reception_qr', encode(extensions.gen_random_bytes(18), 'hex'));
 create table public.profiles (
   id            uuid primary key references auth.users on delete cascade,
   display_name  text check (char_length(btrim(display_name)) between 2 and 60),
+  room          text check (room ~ '^[0-9A-Za-z./ -]{1,10}$'),
   registered_at timestamptz,
   lang          text not null default 'hu' check (lang in ('hu', 'en')),
   is_admin      boolean not null default false,
   created_at    timestamptz not null default now(),
-  check (registered_at is null or display_name is not null)
+  check (registered_at is null or (display_name is not null and room is not null))
 );
 
 alter table public.profiles enable row level security;
@@ -73,7 +74,7 @@ create policy "update own profile" on public.profiles
 
 -- Users may only change these columns (not registered_at / is_admin).
 revoke update on public.profiles from anon, authenticated;
-grant update (display_name, lang) on public.profiles to authenticated;
+grant update (display_name, room, lang) on public.profiles to authenticated;
 
 create function private.create_profile() returns trigger
 language plpgsql security definer set search_path = '' as $$
@@ -101,6 +102,7 @@ create table public.floor_status (
   floor         smallint primary key check (floor between 1 and 6),
   holder_id     uuid references public.profiles on delete set null,
   holder_name   text,
+  holder_room   text,
   picked_up_at  timestamptz,
   checkout_id   bigint
 );
@@ -109,6 +111,19 @@ insert into public.floor_status (floor) select generate_series(1, 6);
 alter table public.floor_status enable row level security;
 create policy "registered users see all keys" on public.floor_status
   for select to authenticated using ((select public.is_registered()));
+
+-- Renaming yourself (or changing your room) while holding a key updates the list.
+create function private.sync_holder_name() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  update public.floor_status
+     set holder_name = new.display_name, holder_room = new.room
+   where holder_id = new.id;
+  return null;
+end $$;
+
+create trigger sync_holder_name after update of display_name, room on public.profiles
+  for each row execute function private.sync_holder_name();
 
 -- History of every pickup (one row per pickup).
 create table public.key_checkouts (
@@ -371,7 +386,7 @@ begin
   returning c.* into v_row;
 
   update public.floor_status
-     set holder_id = null, holder_name = null, picked_up_at = null, checkout_id = null
+     set holder_id = null, holder_name = null, holder_room = null, picked_up_at = null, checkout_id = null
    where floor = v_row.floor;
 
   -- The holder's reminders and machine timers are no longer needed.
@@ -387,21 +402,22 @@ begin
   return v_row;
 end $$;
 
--- Join with a name, using the code from the reception QR code. Also used to
--- re-register after the user's browser lost its session.
-create function public.register(p_name text, p_code text)
+-- Join with a name and room number, using the code from the reception QR code.
+create function public.register(p_name text, p_room text, p_code text)
 returns public.profiles
 language plpgsql security definer set search_path = '' as $$
 declare
   v_name text := btrim(coalesce(p_name, ''));
+  v_room text := btrim(coalesce(p_room, ''));
   v_row  public.profiles;
 begin
   if auth.uid() is null then raise exception 'not_authenticated'; end if;
   if not private.qr_is_valid(p_code) then raise exception 'invalid_qr'; end if;
   if char_length(v_name) not between 2 and 60 then raise exception 'invalid_name'; end if;
+  if v_room !~ '^[0-9A-Za-z./ -]{1,10}$' then raise exception 'invalid_room'; end if;
 
   update public.profiles
-     set display_name = v_name, registered_at = coalesce(registered_at, now())
+     set display_name = v_name, room = v_room, registered_at = coalesce(registered_at, now())
    where id = auth.uid()
   returning * into v_row;
   if not found then raise exception 'not_authenticated'; end if;
@@ -415,6 +431,7 @@ language plpgsql security definer set search_path = '' as $$
 declare
   v_uid    uuid := auth.uid();
   v_name   text;
+  v_room   text;
   v_status public.floor_status;
   v_row    public.key_checkouts;
   v_due    timestamptz;
@@ -422,7 +439,7 @@ begin
   if v_uid is null then raise exception 'not_authenticated'; end if;
   if not private.qr_is_valid(p_code) then raise exception 'invalid_qr'; end if;
 
-  select display_name into v_name from public.profiles where id = v_uid and registered_at is not null;
+  select display_name, room into v_name, v_room from public.profiles where id = v_uid and registered_at is not null;
   if v_name is null then raise exception 'not_registered'; end if;
 
   -- Lock the floor so two people can't take the same key at once.
@@ -437,7 +454,7 @@ begin
   returning * into v_row;
 
   update public.floor_status
-     set holder_id = v_uid, holder_name = v_name,
+     set holder_id = v_uid, holder_name = v_name, holder_room = v_room,
          picked_up_at = v_row.picked_up_at, checkout_id = v_row.id
    where floor = p_floor;
 
@@ -496,7 +513,7 @@ end $$;
 
 revoke execute on all functions in schema public from public, anon, authenticated;
 revoke execute on all functions in schema private from public, anon, authenticated;
-grant execute on function public.register(text, text),
+grant execute on function public.register(text, text, text),
                           public.is_registered(),
                           public.checkout_key(int, text),
                           public.return_key(text),
