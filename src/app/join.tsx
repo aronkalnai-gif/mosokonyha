@@ -1,24 +1,35 @@
+import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button, Muted } from '../components/ui';
-import { useI18n } from '../lib/i18n';
+import { errorText, useI18n } from '../lib/i18n';
+import { isValidSecret } from '../lib/machines';
+import { peekPendingQr, takePendingQr } from '../lib/pendingQr';
 import { colors } from '../lib/theme';
 import { useAuth } from '../state/auth';
+import { ServerError } from '../state/errors';
 
-export default function Name() {
+/** After scanning the reception QR code for the first time: enter your name. */
+export default function Join() {
   const { t } = useI18n();
-  const { updateProfile, signOut } = useAuth();
+  const { join } = useAuth();
+  const [code] = useState(peekPendingQr);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const save = async () => {
+  if (!isValidSecret(code)) return <Redirect href="/welcome" />;
+
+  const submit = async () => {
     setBusy(true);
     setError(null);
     try {
-      await updateProfile({ display_name: name.trim() });
+      // The code stays stored: the reception page uses it next.
+      await join(name.trim(), code);
     } catch (e) {
-      setError(String((e as Error).message ?? e));
+      const errCode = e instanceof ServerError ? e.code : String(e);
+      if (errCode === 'invalid_qr') takePendingQr();
+      setError(errorText(t, errCode));
       setBusy(false);
     }
   };
@@ -31,14 +42,17 @@ export default function Name() {
         placeholder={t('namePlaceholder')}
         autoCapitalize="words"
         autoComplete="name"
+        autoFocus
         value={name}
         onChangeText={setName}
-        onSubmitEditing={save}
+        onSubmitEditing={() => name.trim().length >= 2 && submit()}
         maxLength={60}
       />
       {error && <Text style={styles.error}>{error}</Text>}
-      <Button title={t('save')} onPress={save} loading={busy} disabled={name.trim().length < 2} />
-      <Button title={t('signOut')} variant="ghost" onPress={signOut} />
+      {error && !peekPendingQr() && (
+        <Button variant="secondary" title={t('welcomeScan')} onPress={() => router.replace('/welcome')} />
+      )}
+      <Button title={t('joinButton')} onPress={submit} loading={busy} disabled={name.trim().length < 2} />
     </View>
   );
 }

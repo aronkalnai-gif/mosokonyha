@@ -6,7 +6,7 @@ A web page for the dorm's laundry rooms. It shows which floor's laundry key is f
 
 | | |
 |---|---|
-| **Sign in** | With a BME e-mail address (`@edu.bme.hu`), using a one-time code. Címtár (SAML) login is planned, see below. |
+| **Joining** | No login and no password. On the first visit you scan the QR code at the reception and type your name, and that's it. The browser remembers you from then on. Without scanning the code nobody can see the list, so only people who've been at the reception can use it. |
 | **Key list** | All 6 floors live: free or taken, who has the key, since when, and a bar showing how much of the 4 hours has passed. |
 | **Picking up a key** | Sign the paper form as usual, and scan the printed QR code at the reception with the phone's camera. It opens the page's *Recepció* screen; tap the floor whose key you're taking. The 4 hours start now, and the page opens your laundry room. You can also tap *Kulcs felvétele* on a floor and scan inside the page. The scan makes sure only someone at the reception can mark a key as taken. |
 | **Returning a key** | Scan the same QR code again and tap *Kulcs visszaadása*. The key shows as free for everyone, and you see whether you went over time and the fee. |
@@ -36,13 +36,8 @@ A web page for the dorm's laundry rooms. It shows which floor's laundry key is f
 1. Create a project at supabase.com.
 2. Enable the **pg_net** and **pg_cron** extensions (Database → Extensions).
 3. In the **SQL editor**, run `supabase/migrations/20261013000000_init.sql`. Or use the Supabase CLI: `supabase link` and then `supabase db push`.
-4. **Authentication → Sign In / Providers → Email:** keep it enabled. **Authentication → Emails → Magic link** template: make sure the body contains the code `{{ .Token }}`, because the page asks for the code, not a link. Example:
-   ```html
-   <h2>Mosókonyha belépés</h2>
-   <p>A belépőkódod: <strong>{{ .Token }}</strong></p>
-   ```
-5. **Authentication → Emails → SMTP settings:** set up your own SMTP server. Supabase's built-in e-mail sender is limited to a few e-mails per hour, which is too few for a dorm. Brevo or Resend free tiers both work.
-6. **Authentication → URL Configuration:** set the *Site URL* to your site's address.
+4. **Authentication → Sign In / Providers:** turn on **Allow anonymous sign-ins**. This is how the page keeps people "logged in" without e-mail or passwords.
+5. **Authentication → Rate Limits:** the default allows 30 anonymous sign-ins per hour per IP address. If the whole dorm shares one internet address, raise it (for example to 200) for the first days, when everyone joins at once.
 
 ### 2. Push notifications
 
@@ -97,10 +92,10 @@ update private.secrets set value = encode(extensions.gen_random_bytes(18), 'hex'
 
 ### 5. Admins
 
-After your first sign-in:
+After you've joined with your name:
 
 ```sql
-update profiles set is_admin = true where email = 'you@edu.bme.hu';
+update profiles set is_admin = true where display_name = 'Your Name';
 ```
 
 ## Settings
@@ -118,4 +113,5 @@ update app_settings set key_minutes = 240, fee_huf = 500, fee_block_minutes = 30
 - **Paper-form pickups:** keys taken without the page don't show up in it. The page only works well if everyone uses it, or if the reception stops the paper form.
 - **Forgotten returns:** if someone gives back the key but doesn't scan, the key stays "taken" until an admin frees it.
 - **The QR link can be shared:** anyone who has the QR link (from a photo or their browser history) can "scan" from their room. If that happens, rotate the secret and print a new code.
-- **Címtár (BME SSO):** needs the site to be registered as a SAML service provider with BME IT (Címtár / eduID). Once approved, the e-mail code login can be replaced. Note that Supabase's built-in SAML is a paid (Pro) feature; a small custom SAML endpoint is the free alternative.
+- **Names aren't checked:** anyone at the reception can join with any name. For telling each other which key is free, that's usually enough.
+- **Joining again:** the browser remembers you. If someone clears their browser data, uses another phone, or (on iPhone in Safari) doesn't open the page for about 7 days, they scan the QR code again and join as a new person. A key held by their old identity can be freed by an admin.

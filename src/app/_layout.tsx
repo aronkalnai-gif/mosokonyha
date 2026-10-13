@@ -39,7 +39,7 @@ export default function RootLayout() {
 }
 
 function Routes() {
-  const { session, profile, loading, updateProfile } = useAuth();
+  const { profile, registered, loading, updateProfile } = useAuth();
   const { t, lang } = useI18n();
   const pathname = usePathname();
 
@@ -50,13 +50,11 @@ function Routes() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang, profileId]);
 
-  const signedIn = !!session && !!profile;
-  const named = signedIn && !!profile.display_name;
-
-  // Continue to the reception page after signing in from a QR link.
+  // Just joined at the reception (or opened its QR link): continue to the
+  // reception page to pick up or return a key.
   useEffect(() => {
-    if (named && pathname !== '/qr' && hasPendingQr()) router.replace('/qr');
-  }, [named, pathname]);
+    if (registered && pathname !== '/qr' && hasPendingQr()) router.replace('/qr');
+  }, [registered, pathname]);
 
   if (loading) {
     return (
@@ -75,19 +73,17 @@ function Routes() {
         contentStyle: { backgroundColor: colors.bg },
       }}
     >
-      <Stack.Protected guard={!signedIn}>
-        <Stack.Screen name="login" options={{ headerShown: false, title: t('loginTitle') }} />
+      <Stack.Protected guard={!registered}>
+        <Stack.Screen name="welcome" options={{ headerShown: false, title: t('appName') }} />
+        <Stack.Screen name="join" options={{ title: t('nameTitle') }} />
       </Stack.Protected>
-      <Stack.Protected guard={signedIn && !named}>
-        <Stack.Screen name="name" options={{ title: t('nameTitle') }} />
-      </Stack.Protected>
-      <Stack.Protected guard={named}>
+      <Stack.Protected guard={registered}>
         <Stack.Screen name="index" options={{ title: t('appName') }} />
         <Stack.Screen name="qr" options={{ title: t('qrTitle') }} />
-        <Stack.Screen name="scan" options={{ title: '' }} />
         <Stack.Screen name="room" options={{ title: '' }} />
         <Stack.Screen name="settings" options={{ title: t('settings') }} />
       </Stack.Protected>
+      <Stack.Screen name="scan" options={{ title: '' }} />
     </Stack>
   );
 }

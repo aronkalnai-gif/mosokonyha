@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useDialog } from '../components/Dialog';
 import { Button, Card, Muted } from '../components/ui';
 import { useI18n } from '../lib/i18n';
 import { isStandalone } from '../lib/push';
@@ -11,7 +12,8 @@ import { useLaundry } from '../state/laundry';
 
 export default function Settings() {
   const { t, lang, setLang } = useI18n();
-  const { profile, updateProfile, signOut } = useAuth();
+  const { profile, updateProfile, leave } = useAuth();
+  const dialog = useDialog();
   const { settings } = useLaundry();
   const push = usePushState();
   const [name, setName] = useState(profile?.display_name ?? '');
@@ -79,8 +81,13 @@ export default function Settings() {
         </Muted>
       </Card>
 
-      <Muted style={styles.center}>{t('signedInAs', { email: profile?.email ?? '' })}</Muted>
-      <Button variant="danger" title={t('signOut')} onPress={signOut} />
+      <Button
+        variant="danger"
+        title={t('leave')}
+        onPress={async () => {
+          if (await dialog.confirm(t('leave'), t('leaveConfirm'), t('leave'), true)) leave();
+        }}
+      />
     </ScrollView>
   );
 }

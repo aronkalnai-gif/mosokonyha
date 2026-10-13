@@ -6,14 +6,15 @@ import { Button, Muted } from '../components/ui';
 import { useAfterKeyChange } from '../lib/useAfterKeyChange';
 import { errorText, useI18n } from '../lib/i18n';
 import { parseReceptionQr } from '../lib/machines';
+import { setPendingQr } from '../lib/pendingQr';
 import { colors } from '../lib/theme';
 import { ServerError, useLaundry } from '../state/laundry';
 
 export default function Scan() {
   const { t } = useI18n();
   const afterKeyChange = useAfterKeyChange();
-  const params = useLocalSearchParams<{ mode: 'pickup' | 'return'; floor?: string }>();
-  const mode = params.mode === 'return' ? 'return' : 'pickup';
+  const params = useLocalSearchParams<{ mode: 'pickup' | 'return' | 'join'; floor?: string }>();
+  const mode = params.mode === 'return' || params.mode === 'join' ? params.mode : 'pickup';
   const floor = Number(params.floor);
   const { pickUp, returnKey } = useLaundry();
   const [permission, requestPermission] = useCameraPermissions();
@@ -26,6 +27,10 @@ export default function Scan() {
     if (handling.current) return;
     const code = parseReceptionQr(data);
     if (!code) return setMessage(t('wrongQr'));
+    if (mode === 'join') {
+      setPendingQr(code);
+      return router.replace('/join');
+    }
 
     handling.current = true;
     setBusy(true);
@@ -40,7 +45,8 @@ export default function Scan() {
     }
   };
 
-  const title = mode === 'pickup' ? t('scanPickupTitle', { floor }) : t('scanReturnTitle');
+  const title =
+    mode === 'join' ? t('appName') : mode === 'pickup' ? t('scanPickupTitle', { floor }) : t('scanReturnTitle');
 
   if (!permission) return <View style={styles.center} />;
   if (!permission.granted || cameraFailed) {

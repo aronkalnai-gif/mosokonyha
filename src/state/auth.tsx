@@ -1,15 +1,22 @@
 import { Session } from '@supabase/supabase-js';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { forgetThisBrowser, resyncPush } from '../lib/push';
-import { Profile, supabase } from '../lib/supabase';
+import { errorCode, Profile, supabase } from '../lib/supabase';
+import { ServerError } from './errors';
 
+// There is no login. The page signs in anonymously (the session is kept in
+// the browser), and the user registers once with a name and the code from the
+// reception QR code.
 type Auth = {
   session: Session | null;
   profile: Profile | null;
+  registered: boolean;
   /** True until we know whether there is a session (and its profile). */
   loading: boolean;
+  join: (name: string, code: string) => Promise<void>;
   updateProfile: (patch: Partial<Pick<Profile, 'display_name' | 'lang'>>) => Promise<void>;
-  signOut: () => Promise<void>;
+  /** Forgets this browser's identity; joining again needs the QR code. */
+  leave: () => Promise<void>;
 };
 
 const AuthContext = createContext<Auth | null>(null);
@@ -41,11 +48,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single()
       .then(({ data, error }) => {
         if (error) console.warn('Profile load failed', error);
-        setProfile(data);
+        // join() may already have stored a newer (registered) profile.
+        setProfile((prev) => prev ?? data);
         setProfileLoaded(true);
       });
     resyncPush().catch((e) => console.warn('Push', e));
   }, [userId]);
+
+  const join = useCallback<Auth['join']>(
+    async (name, code) => {
+      if (!session) {
+        const { error } = await supabase.auth.signInAnonymously();
+        if (error) throw new ServerError(error.message);
+      }
+      const { data, error } = await supabase.rpc('register', { p_name: name, p_code: code });
+      if (error) throw new ServerError(errorCode(error));
+      setProfile(data);
+      setProfileLoaded(true);
+    },
+    [session],
+  );
 
   const updateProfile = useCallback<Auth['updateProfile']>(
     async (patch) => {
@@ -57,14 +79,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [userId],
   );
 
-  const signOut = useCallback(async () => {
+  const leave = useCallback(async () => {
     await forgetThisBrowser().catch((e) => console.warn('Push', e));
     await supabase.auth.signOut();
-  }, [userId]);
+  }, []);
 
   const loading = !sessionLoaded || (!!session && !profileLoaded);
+  const registered = !!profile?.registered_at;
   return (
-    <AuthContext.Provider value={{ session, profile, loading, updateProfile, signOut }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ session, profile, registered, loading, join, updateProfile, leave }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

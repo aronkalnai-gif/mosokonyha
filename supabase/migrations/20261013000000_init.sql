@@ -1,6 +1,8 @@
 -- Mosókonyha – initial schema
 --
 -- Model:
+--   * No login: users sign in anonymously and register with a name plus the
+--     code from the reception QR code (public.register).
 --   * Each floor has exactly one laundry-room key (floor_status row).
 --   * A user picks up a key by scanning the printed QR code at the reception
 --     (checkout_key) and returns it by scanning the same QR code again
@@ -44,23 +46,22 @@ create table private.secrets (
 insert into private.secrets (name, value)
 values ('reception_qr', encode(extensions.gen_random_bytes(18), 'hex'));
 
--- Only these e-mail domains may register (students: @edu.bme.hu).
-create table private.allowed_email_domains (
-  domain text primary key
-);
-insert into private.allowed_email_domains values ('edu.bme.hu');
-
 -- ---------------------------------------------------------------------------
 -- Profiles
 -- ---------------------------------------------------------------------------
 
+-- There is no login: the page signs in anonymously (Supabase anonymous
+-- sign-ins), and the user becomes "registered" by entering a name together
+-- with the code from the reception QR code (public.register). Only
+-- registered users can see the keys.
 create table public.profiles (
-  id           uuid primary key references auth.users on delete cascade,
-  email        text not null,
-  display_name text check (char_length(btrim(display_name)) between 2 and 60),
-  lang         text not null default 'hu' check (lang in ('hu', 'en')),
-  is_admin     boolean not null default false,
-  created_at   timestamptz not null default now()
+  id            uuid primary key references auth.users on delete cascade,
+  display_name  text check (char_length(btrim(display_name)) between 2 and 60),
+  registered_at timestamptz,
+  lang          text not null default 'hu' check (lang in ('hu', 'en')),
+  is_admin      boolean not null default false,
+  created_at    timestamptz not null default now(),
+  check (registered_at is null or display_name is not null)
 );
 
 alter table public.profiles enable row level security;
@@ -70,39 +71,31 @@ create policy "read own profile" on public.profiles
 create policy "update own profile" on public.profiles
   for update to authenticated using (id = (select auth.uid()));
 
--- Users may only change these columns (not is_admin / email).
+-- Users may only change these columns (not registered_at / is_admin).
 revoke update on public.profiles from anon, authenticated;
 grant update (display_name, lang) on public.profiles to authenticated;
-
-create function private.check_email_domain() returns trigger
-language plpgsql security definer set search_path = '' as $$
-begin
-  if not exists (
-    select 1 from private.allowed_email_domains d
-    where d.domain = lower(split_part(new.email, '@', 2))
-  ) then
-    raise exception 'email_domain_not_allowed';
-  end if;
-  return new;
-end $$;
 
 create function private.create_profile() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
-  insert into public.profiles (id, email) values (new.id, new.email);
+  insert into public.profiles (id) values (new.id);
   return new;
 end $$;
 
-create trigger check_email_domain before insert on auth.users
-  for each row execute function private.check_email_domain();
 create trigger create_profile after insert on auth.users
   for each row execute function private.create_profile();
+
+-- Used by the row-level security policies below.
+create function public.is_registered() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.profiles where id = auth.uid() and registered_at is not null)
+$$;
 
 -- ---------------------------------------------------------------------------
 -- Keys
 -- ---------------------------------------------------------------------------
 
--- Current state of each floor's key. Readable by every signed-in student,
+-- Current state of each floor's key. Readable by every registered user,
 -- written only by the functions below.
 create table public.floor_status (
   floor         smallint primary key check (floor between 1 and 6),
@@ -114,8 +107,8 @@ create table public.floor_status (
 insert into public.floor_status (floor) select generate_series(1, 6);
 
 alter table public.floor_status enable row level security;
-create policy "students see all keys" on public.floor_status
-  for select to authenticated using (true);
+create policy "registered users see all keys" on public.floor_status
+  for select to authenticated using ((select public.is_registered()));
 
 -- History of every pickup (one row per pickup).
 create table public.key_checkouts (
@@ -146,7 +139,7 @@ alter table public.free_watchers enable row level security;
 create policy "manage own watches" on public.free_watchers
   for all to authenticated
   using (user_id = (select auth.uid()))
-  with check (user_id = (select auth.uid()));
+  with check (user_id = (select auth.uid()) and (select public.is_registered()));
 
 -- ---------------------------------------------------------------------------
 -- Machine timers
@@ -290,7 +283,7 @@ create function public.save_push_subscription(p_endpoint text, p_p256dh text, p_
 returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+  if not public.is_registered() then raise exception 'not_registered'; end if;
   insert into public.push_subscriptions (endpoint, user_id, p256dh, auth)
   values (p_endpoint, auth.uid(), p_p256dh, p_auth)
   on conflict (endpoint) do update
@@ -394,6 +387,27 @@ begin
   return v_row;
 end $$;
 
+-- Join with a name, using the code from the reception QR code. Also used to
+-- re-register after the user's browser lost its session.
+create function public.register(p_name text, p_code text)
+returns public.profiles
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_name text := btrim(coalesce(p_name, ''));
+  v_row  public.profiles;
+begin
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+  if not private.qr_is_valid(p_code) then raise exception 'invalid_qr'; end if;
+  if char_length(v_name) not between 2 and 60 then raise exception 'invalid_name'; end if;
+
+  update public.profiles
+     set display_name = v_name, registered_at = coalesce(registered_at, now())
+   where id = auth.uid()
+  returning * into v_row;
+  if not found then raise exception 'not_authenticated'; end if;
+  return v_row;
+end $$;
+
 -- Pick up the key of a floor. p_code is the secret from the reception QR code.
 create function public.checkout_key(p_floor int, p_code text)
 returns public.key_checkouts
@@ -408,8 +422,8 @@ begin
   if v_uid is null then raise exception 'not_authenticated'; end if;
   if not private.qr_is_valid(p_code) then raise exception 'invalid_qr'; end if;
 
-  select display_name into v_name from public.profiles where id = v_uid;
-  if v_name is null then raise exception 'no_display_name'; end if;
+  select display_name into v_name from public.profiles where id = v_uid and registered_at is not null;
+  if v_name is null then raise exception 'not_registered'; end if;
 
   -- Lock the floor so two people can't take the same key at once.
   select * into v_status from public.floor_status where floor = p_floor for update;
@@ -482,7 +496,9 @@ end $$;
 
 revoke execute on all functions in schema public from public, anon, authenticated;
 revoke execute on all functions in schema private from public, anon, authenticated;
-grant execute on function public.checkout_key(int, text),
+grant execute on function public.register(text, text),
+                          public.is_registered(),
+                          public.checkout_key(int, text),
                           public.return_key(text),
                           public.admin_force_return(int),
                           public.overtime_fee(timestamptz, timestamptz),

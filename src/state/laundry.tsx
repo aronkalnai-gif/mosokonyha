@@ -9,12 +9,9 @@ import {
   supabase,
 } from '../lib/supabase';
 import { useAuth } from './auth';
+import { ServerError } from './errors';
 
-export class ServerError extends Error {
-  constructor(public code: string) {
-    super(code);
-  }
-}
+export { ServerError };
 
 type Laundry = {
   floors: FloorStatus[];
@@ -39,7 +36,7 @@ async function rpc<R>(fn: string, args: Record<string, unknown>): Promise<R> {
 }
 
 export function LaundryProvider({ children }: { children: ReactNode }) {
-  const { session } = useAuth();
+  const { session, registered } = useAuth();
   const userId = session?.user.id;
   const [floors, setFloors] = useState<FloorStatus[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -59,7 +56,8 @@ export function LaundryProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!userId) return;
+    // Only registered users may see the keys.
+    if (!userId || !registered) return;
     refresh();
 
     // Live updates whenever any key is picked up or returned.
@@ -87,7 +85,7 @@ export function LaundryProvider({ children }: { children: ReactNode }) {
       sub.remove();
       supabase.removeChannel(channel);
     };
-  }, [userId, refresh]);
+  }, [userId, registered, refresh]);
 
   const myFloor = useMemo(() => floors.find((f) => f.holder_id && f.holder_id === userId), [floors, userId]);
 

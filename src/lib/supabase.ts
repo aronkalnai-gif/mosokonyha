@@ -45,8 +45,8 @@ export type Checkout = {
 
 export type Profile = {
   id: string;
-  email: string;
   display_name: string | null;
+  registered_at: string | null;
   lang: 'hu' | 'en';
   is_admin: boolean;
 };

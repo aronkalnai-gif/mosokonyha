@@ -9,19 +9,11 @@ const hu = {
   save: 'Mentés',
   back: 'Vissza',
 
-  // Login
-  loginTitle: 'Bejelentkezés',
-  loginIntro: 'Add meg a BME-s e-mail-címed (@edu.bme.hu). Küldünk rá egy belépőkódot.',
-  emailPlaceholder: 'neptun@edu.bme.hu',
-  sendCode: 'Kód küldése',
-  codeSentTo: 'Elküldtük a kódot ide: {email}',
-  codePlaceholder: '6 jegyű kód',
-  verify: 'Belépés',
-  otherEmail: 'Másik e-mail-cím',
-  onlyBme: 'Csak @edu.bme.hu e-mail-címmel lehet belépni.',
-  loginFailed: 'Nem sikerült: {msg}',
-
-  // Name
+  // Joining
+  welcomeIntro: 'Nézd meg, melyik emelet mosókonyha-kulcsa szabad. A kezdéshez olvasd be a recepción kihelyezett QR-kódot.',
+  welcomeScan: 'QR-kód beolvasása',
+  welcomeCameraTip: 'A telefonod kamera-appjával is beolvashatod – az megnyitja ezt az oldalt.',
+  joinButton: 'Kezdés',
   nameTitle: 'Hogy hívnak?',
   nameIntro: 'Ez a név jelenik meg a többieknek, amíg nálad van egy kulcs (mint a recepciós füzetben).',
   namePlaceholder: 'Teljes név',
@@ -106,10 +98,10 @@ const hu = {
   settings: 'Beállítások',
   language: 'Nyelv',
   displayName: 'Megjelenített név',
-  signedInAs: 'Bejelentkezve: {email}',
-  signOut: 'Kijelentkezés',
   notifications: 'Értesítések',
   rules: 'Szabályok',
+  leave: 'Kilépés ezen az eszközön',
+  leaveConfirm: 'Ezután újra be kell olvasnod a QR-kódot a recepción, és új felhasználóként csatlakozol. Ha nálad van egy kulcs, előbb add vissza.',
   rulesText: 'Egy kulcs {hours} óráig lehet nálad. Utána minden megkezdett {block} perc {fee}.',
 
   // Errors from the server
@@ -117,10 +109,10 @@ const hu = {
   err_floor_taken: 'Ezt a kulcsot közben már elvitte valaki.',
   err_already_holding_key: 'Már van nálad egy kulcs.',
   err_no_active_key: 'Nincs nálad kulcs.',
-  err_no_display_name: 'Előbb add meg a neved.',
   err_not_admin: 'Ehhez nincs jogosultságod.',
+  err_not_registered: 'Előbb olvasd be a recepción lévő QR-kódot.',
+  err_invalid_name: 'A név 2–60 karakter legyen.',
   err_floor_already_free: 'Ez a kulcs már szabad.',
-  err_email_domain_not_allowed: 'Csak @edu.bme.hu e-mail-címmel lehet belépni.',
   err_unknown: 'Hiba történt: {msg}',
 };
 
@@ -135,16 +127,11 @@ const en: Dict = {
   save: 'Save',
   back: 'Back',
 
-  loginTitle: 'Sign in',
-  loginIntro: 'Enter your BME e-mail address (@edu.bme.hu). We will send you a login code.',
-  emailPlaceholder: 'neptun@edu.bme.hu',
-  sendCode: 'Send code',
-  codeSentTo: 'We sent a code to {email}',
-  codePlaceholder: '6-digit code',
-  verify: 'Sign in',
-  otherEmail: 'Use another e-mail',
-  onlyBme: 'Only @edu.bme.hu e-mail addresses can sign in.',
-  loginFailed: 'Failed: {msg}',
+
+  welcomeIntro: "See which floor's laundry key is free. To start, scan the QR code at the reception.",
+  welcomeScan: 'Scan QR code',
+  welcomeCameraTip: "You can also scan it with your phone's camera app – it opens this page.",
+  joinButton: 'Start',
 
   nameTitle: "What's your name?",
   nameIntro: 'Others will see this name while you hold a key (just like in the reception notebook).',
@@ -224,20 +211,20 @@ const en: Dict = {
   settings: 'Settings',
   language: 'Language',
   displayName: 'Display name',
-  signedInAs: 'Signed in as {email}',
-  signOut: 'Sign out',
   notifications: 'Notifications',
   rules: 'Rules',
+  leave: 'Leave on this device',
+  leaveConfirm: "You'll have to scan the QR code at the reception again, and you'll join as a new person. If you hold a key, return it first.",
   rulesText: 'You may keep a key for {hours} hours. After that, every started {block} minutes costs {fee}.',
 
   err_invalid_qr: 'Invalid QR code.',
   err_floor_taken: 'Someone took this key in the meantime.',
   err_already_holding_key: 'You already hold a key.',
   err_no_active_key: "You don't hold a key.",
-  err_no_display_name: 'Set your name first.',
   err_not_admin: "You're not allowed to do this.",
+  err_not_registered: 'Scan the QR code at the reception first.',
+  err_invalid_name: 'The name must be 2–60 characters.',
   err_floor_already_free: 'This key is already free.',
-  err_email_domain_not_allowed: 'Only @edu.bme.hu e-mail addresses can sign in.',
   err_unknown: 'Something went wrong: {msg}',
 };
 
