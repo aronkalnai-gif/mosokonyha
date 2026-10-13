@@ -89,7 +89,7 @@ export default function Proof() {
           <Text style={styles.live}>● {t('proofLive')}</Text>
         </View>
 
-        <Button variant="secondary" title={t('done')} onPress={() => router.back()} />
+        <Button variant="secondary" title={t('done')} onPress={() => router.dismissTo('/')} />
       </SafeAreaView>
     </Animated.View>
   );
