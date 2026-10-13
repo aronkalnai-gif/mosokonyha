@@ -56,18 +56,10 @@ const hu = {
   wrongQr: 'Ez nem a mosókonyha QR-kódja.',
   processing: 'Feldolgozás…',
 
-  // Proof
-  proofPickup: 'Kulcs felvéve',
-  proofReturn: 'Kulcs visszaadva',
-  proofShow: 'Mutasd meg ezt a képernyőt a recepciósnak!',
-  proofLive: 'Élő képernyő – nem képernyőkép',
-  proofPickedAt: 'Felvéve: {time}',
-  proofReturnedAt: 'Visszaadva: {time}',
-  proofDue: 'Vissza kell hozni: {time}',
-  proofOvertime: 'Túllépés: {min} perc',
-  proofFee: 'Fizetendő: {fee}',
-  proofNoFee: 'Nincs fizetendő díj',
-  done: 'Kész',
+  // After returning a key
+  keyReturned: 'Visszaadtad a(z) {floor}. emeleti kulcsot',
+  returnedOnTime: 'Időben visszahoztad, nincs mit fizetned. Köszi!',
+  returnedWithFee: 'Túllépés: {min} perc. Fizetendő a recepción: {fee}.',
 
   // Room
   roomTitle: '{floor}. emeleti mosókonyha',
@@ -182,17 +174,9 @@ const en: Dict = {
   wrongQr: "That's not the laundry QR code.",
   processing: 'Processing…',
 
-  proofPickup: 'Key picked up',
-  proofReturn: 'Key returned',
-  proofShow: 'Show this screen to the receptionist!',
-  proofLive: 'Live screen – not a screenshot',
-  proofPickedAt: 'Picked up: {time}',
-  proofReturnedAt: 'Returned: {time}',
-  proofDue: 'Due back: {time}',
-  proofOvertime: 'Overtime: {min} min',
-  proofFee: 'To pay: {fee}',
-  proofNoFee: 'Nothing to pay',
-  done: 'Done',
+  keyReturned: 'You returned the floor {floor} key',
+  returnedOnTime: 'Returned on time, nothing to pay. Thanks!',
+  returnedWithFee: 'Overtime: {min} min. To pay at the reception: {fee}.',
 
   roomTitle: 'Floor {floor} laundry room',
   washer: 'Washer {n}',

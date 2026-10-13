@@ -3,7 +3,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Button, Muted } from '../components/ui';
-import { goToProof } from '../lib/goToProof';
+import { useAfterKeyChange } from '../lib/useAfterKeyChange';
 import { errorText, useI18n } from '../lib/i18n';
 import { parseReceptionQr } from '../lib/machines';
 import { colors } from '../lib/theme';
@@ -11,6 +11,7 @@ import { ServerError, useLaundry } from '../state/laundry';
 
 export default function Scan() {
   const { t } = useI18n();
+  const afterKeyChange = useAfterKeyChange();
   const params = useLocalSearchParams<{ mode: 'pickup' | 'return'; floor?: string }>();
   const mode = params.mode === 'return' ? 'return' : 'pickup';
   const floor = Number(params.floor);
@@ -30,7 +31,7 @@ export default function Scan() {
     setBusy(true);
     setMessage(null);
     try {
-      goToProof(mode, mode === 'pickup' ? await pickUp(floor, code) : await returnKey(code));
+      afterKeyChange(mode, mode === 'pickup' ? await pickUp(floor, code) : await returnKey(code));
     } catch (e) {
       setMessage(errorText(t, e instanceof ServerError ? e.code : String(e)));
       setBusy(false);

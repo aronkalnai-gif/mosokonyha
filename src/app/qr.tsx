@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button, Card, Muted } from '../components/ui';
-import { goToProof } from '../lib/goToProof';
+import { useAfterKeyChange } from '../lib/useAfterKeyChange';
 import { errorText, useI18n } from '../lib/i18n';
 import { isValidSecret } from '../lib/machines';
 import { colors } from '../lib/theme';
@@ -13,6 +13,7 @@ import { takePendingQr } from '../lib/pendingQr';
 
 export default function Qr() {
   const { t } = useI18n();
+  const afterKeyChange = useAfterKeyChange();
   const params = useLocalSearchParams<{ c?: string }>();
   const [code] = useState(() => {
     const pending = takePendingQr();
@@ -35,8 +36,8 @@ export default function Qr() {
     setBusy(what);
     setError(null);
     try {
-      if (what === 'return') goToProof('return', await returnKey(code));
-      else goToProof('pickup', await pickUp(what, code));
+      if (what === 'return') afterKeyChange('return', await returnKey(code));
+      else afterKeyChange('pickup', await pickUp(what, code));
     } catch (e) {
       setError(errorText(t, e instanceof ServerError ? e.code : String(e)));
       setBusy(null);

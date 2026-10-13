@@ -1,6 +1,6 @@
 # 🧺 Mosókonyha
 
-A web page for the dorm's laundry rooms. It shows which floor's laundry key is free right now, so you don't have to walk down to the reception to check. It works in any phone browser, with nothing to install. Optionally, students can add it to their home screen and it then opens like an app.
+A web page for the dorm's laundry rooms. It shows which floor's laundry key is free right now, so you don't have to walk down to the reception to check. The reception's paper form stays as it is; the page only tells students about each other's keys. It works in any phone browser, with nothing to install. Optionally, students can add it to their home screen and it then opens like an app.
 
 ## How it works
 
@@ -8,8 +8,8 @@ A web page for the dorm's laundry rooms. It shows which floor's laundry key is f
 |---|---|
 | **Sign in** | With a BME e-mail address (`@edu.bme.hu`), using a one-time code. Címtár (SAML) login is planned, see below. |
 | **Key list** | All 6 floors live: free or taken, who has the key, since when, and a bar showing how much of the 4 hours has passed. |
-| **Picking up a key** | Scan the printed QR code at the reception with the phone's camera. It opens the page's *Recepció* screen; tap the floor whose key you're taking. A moving proof screen appears; show it to the receptionist. The 4 hours start now. You can also tap *Kulcs felvétele* on a floor and scan inside the page. |
-| **Returning a key** | Scan the same QR code again and tap *Kulcs visszaadása*. The proof screen shows the return time and any fee to pay. |
+| **Picking up a key** | Sign the paper form as usual, and scan the printed QR code at the reception with the phone's camera. It opens the page's *Recepció* screen; tap the floor whose key you're taking. The 4 hours start now, and the page opens your laundry room. You can also tap *Kulcs felvétele* on a floor and scan inside the page. The scan makes sure only someone at the reception can mark a key as taken. |
+| **Returning a key** | Scan the same QR code again and tap *Kulcs visszaadása*. The key shows as free for everyone, and you see whether you went over time and the fee. |
 | **Overtime** | After 4 hours the page shows how long you're over and the fee: 500 Ft for every **started** 30 minutes. |
 | **Laundry room** | While you hold a key, you see the machines of your floor: 2 washers and 1 dryer, or 1 washer and 1 dryer on the 4th floor. Tap a machine to start a countdown timer. |
 | **Notifications** | Push notifications 15 minutes before your key time ends, when it ends, when a machine timer finishes, and, if you tapped *Szólj, ha szabad*, when a key is returned. They arrive even when the page is closed. |
@@ -21,10 +21,6 @@ A web page for the dorm's laundry rooms. It shows which floor's laundry key is f
 - **Android (Chrome, Samsung Internet, Firefox):** works in the normal browser after tapping *Bekapcsolás*.
 - **iPhone (iOS 16.4 or newer):** Apple only allows notifications for pages added to the Home Screen: *Share → Add to Home Screen*, then open it from there. The page explains this to iPhone users.
 - A web page can't show a live countdown on the lock screen like an installed app could. Instead, the notifications arrive at the right moments.
-
-### Why the proof screen moves
-
-The QR code is printed, so anyone could photograph it, or keep the link. The proof screen has a pulsing background, a spinning icon and a ticking clock. The receptionist can tell at a glance that it's the live page and not a screenshot. If the code gets around, generate a new secret and print a new code (see *QR code* below).
 
 ## Tech
 
@@ -121,5 +117,5 @@ update app_settings set key_minutes = 240, fee_huf = 500, fee_block_minutes = 30
 
 - **Paper-form pickups:** keys taken without the page don't show up in it. The page only works well if everyone uses it, or if the reception stops the paper form.
 - **Forgotten returns:** if someone gives back the key but doesn't scan, the key stays "taken" until an admin frees it.
-- **The QR link can be shared:** anyone who has the QR link (from a photo or their browser history) can "scan" from their room. The proof screen and rotating the secret are the safeguards.
+- **The QR link can be shared:** anyone who has the QR link (from a photo or their browser history) can "scan" from their room. If that happens, rotate the secret and print a new code.
 - **Címtár (BME SSO):** needs the site to be registered as a SAML service provider with BME IT (Címtár / eduID). Once approved, the e-mail code login can be replaced. Note that Supabase's built-in SAML is a paid (Pro) feature; a small custom SAML endpoint is the free alternative.

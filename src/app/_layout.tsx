@@ -14,6 +14,10 @@ import { TimersProvider } from '../state/timers';
 
 rememberQrFromUrl();
 
+// Pages opened from a link (like the reception QR code) still get the key
+// list behind them, so "back" leads somewhere.
+export const unstable_settings = { initialRouteName: 'index' };
+
 export default function RootLayout() {
   useEffect(registerServiceWorker, []);
   return (
@@ -82,7 +86,6 @@ function Routes() {
         <Stack.Screen name="qr" options={{ title: t('qrTitle') }} />
         <Stack.Screen name="scan" options={{ title: '' }} />
         <Stack.Screen name="room" options={{ title: '' }} />
-        <Stack.Screen name="proof" options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }} />
         <Stack.Screen name="settings" options={{ title: t('settings') }} />
       </Stack.Protected>
     </Stack>
