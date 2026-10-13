@@ -3,12 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { KeyProgress } from '../components/KeyProgress';
 import { Button, Card, Muted, ProgressBar } from '../components/ui';
-import { useI18n } from '../lib/i18n';
+import { errorText, useI18n } from '../lib/i18n';
 import { Machine, machinesOnFloor } from '../lib/machines';
 import { colors } from '../lib/theme';
 import { formatClock, formatDuration } from '../lib/time';
 import { useNow } from '../lib/useNow';
-import { useLaundry } from '../state/laundry';
+import { ServerError, useLaundry } from '../state/laundry';
 import { MachineTimer, useTimers } from '../state/timers';
 
 const PRESETS: Record<Machine['kind'], number[]> = {
@@ -60,7 +60,6 @@ export default function Room() {
       {selected && (
         <TimerSheet
           machine={selected}
-          floor={floor}
           label={label(selected)}
           timer={timers[selected.id]}
           now={now}
@@ -141,14 +140,12 @@ function MachineTile({
 
 function TimerSheet({
   machine,
-  floor,
   label,
   timer,
   now,
   onClose,
 }: {
   machine: Machine;
-  floor: number;
   label: string;
   timer?: MachineTimer;
   now: number;
@@ -159,6 +156,21 @@ function TimerSheet({
   const presets = PRESETS[machine.kind];
   const [minutes, setMinutes] = useState(machine.kind === 'washer' ? 60 : 90);
   const running = !!timer && timer.endsAt > now;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const act = async (fn: () => Promise<void>, close = false) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+      if (close) onClose();
+    } catch (e) {
+      setError(errorText(t, e instanceof ServerError ? e.code : String(e)));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
@@ -170,15 +182,12 @@ function TimerSheet({
           <>
             <Text style={styles.bigTime}>{formatDuration(timer.endsAt - now)}</Text>
             <View style={styles.row}>
-              <Button style={styles.flex} variant="secondary" title={t('add5')} onPress={() => extend(machine, floor, label, 5)} />
+              <Button style={styles.flex} variant="secondary" title={t('add5')} onPress={() => act(() => extend(machine, 5))} />
               <Button
                 style={styles.flex}
                 variant="danger"
                 title={t('stop')}
-                onPress={() => {
-                  stop(machine, floor, label);
-                  onClose();
-                }}
+                onPress={() => act(() => stop(machine), true)}
               />
             </View>
           </>
@@ -201,17 +210,16 @@ function TimerSheet({
               <Button small variant="secondary" title="+5" onPress={() => setMinutes((m) => Math.min(300, m + 5))} />
             </View>
             {timer && (
-              <Button variant="ghost" title={t('stop')} onPress={() => { stop(machine, floor, label); onClose(); }} />
+              <Button variant="ghost" title={t('stop')} onPress={() => act(() => stop(machine), true)} />
             )}
             <Button
               title={t('start')}
-              onPress={() => {
-                start(machine, floor, label, minutes);
-                onClose();
-              }}
+              onPress={() => act(() => start(machine, minutes), true)}
+              loading={busy}
             />
           </>
         )}
+        {error && <Text style={styles.error}>{error}</Text>}
         <Button variant="ghost" title={t('cancel')} onPress={onClose} />
       </View>
     </Modal>
@@ -262,7 +270,17 @@ const styles = StyleSheet.create({
   remaining: { fontSize: 22, fontWeight: '800', color: colors.text, fontVariant: ['tabular-nums'] },
   tileHint: { fontSize: 12, color: colors.muted, textAlign: 'center' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
-  sheet: { backgroundColor: colors.card, padding: 20, gap: 14, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  sheet: {
+    backgroundColor: colors.card,
+    padding: 20,
+    gap: 14,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+  },
+  error: { color: colors.danger, textAlign: 'center' },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
   presets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   preset: { borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },

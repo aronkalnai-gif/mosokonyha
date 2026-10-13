@@ -1,88 +1,89 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
-import { useI18n } from '../lib/i18n';
 import { Machine } from '../lib/machines';
-import { syncMachineNotification } from '../lib/notifications';
+import { errorCode, supabase } from '../lib/supabase';
 import { MINUTE } from '../lib/time';
+import { useAuth } from './auth';
+import { ServerError, useLaundry } from './laundry';
 
-/** A running machine timer. Timers are personal and stored on the phone only. */
-export type MachineTimer = { machineId: string; floor: number; startedAt: number; endsAt: number };
+/**
+ * A running machine timer. Stored on the server so it can send the
+ * "finished" notification even when the page is closed.
+ */
+export type MachineTimer = { machineId: string; startedAt: number; endsAt: number };
 
 type Timers = {
   timers: Record<string, MachineTimer>;
-  start: (machine: Machine, floor: number, label: string, minutes: number) => void;
-  extend: (machine: Machine, floor: number, label: string, minutes: number) => void;
-  stop: (machine: Machine, floor: number, label: string) => void;
-  /** Stops every timer (e.g. after returning the key). */
-  clear: () => void;
+  start: (machine: Machine, minutes: number) => Promise<void>;
+  extend: (machine: Machine, minutes: number) => Promise<void>;
+  stop: (machine: Machine) => Promise<void>;
 };
 
-const STORAGE_KEY = 'machineTimers';
-const TimersContext = createContext<Timers | null>(null);
-
-const notifTarget = (m: Machine, floor: number, label: string) => ({
-  id: m.id,
-  index: floor * 10 + (m.kind === 'dryer' ? 9 : m.number),
-  label,
-  floor,
+type Row = { machine_id: string; started_at: string; ends_at: string };
+const fromRow = (r: Row): MachineTimer => ({
+  machineId: r.machine_id,
+  startedAt: new Date(r.started_at).getTime(),
+  endsAt: new Date(r.ends_at).getTime(),
 });
 
+const TimersContext = createContext<Timers | null>(null);
+
 export function TimersProvider({ children }: { children: ReactNode }) {
-  const { t } = useI18n();
+  const { session } = useAuth();
+  const { myFloor } = useLaundry();
+  const userId = session?.user.id;
   const [timers, setTimers] = useState<Record<string, MachineTimer>>({});
 
+  // Reload when the key changes: returning it clears the timers on the server.
+  const checkoutId = myFloor?.checkout_id;
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-      if (raw) setTimers(JSON.parse(raw));
-    });
-  }, []);
+    if (!userId) return setTimers({});
+    supabase
+      .from('machine_timers')
+      .select('machine_id, started_at, ends_at')
+      .then(({ data }) => setTimers(Object.fromEntries((data ?? []).map((r: Row) => [r.machine_id, fromRow(r)]))));
+  }, [userId, checkoutId]);
 
-  const persist = useCallback((next: Record<string, MachineTimer>) => {
-    setTimers(next);
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  }, []);
+  const write = useCallback(
+    async (machine: Machine, startedAt: number, endsAt: number) => {
+      const { data, error } = await supabase
+        .from('machine_timers')
+        .upsert({
+          user_id: userId,
+          machine_id: machine.id,
+          started_at: new Date(startedAt).toISOString(),
+          ends_at: new Date(endsAt).toISOString(),
+        })
+        .select('machine_id, started_at, ends_at')
+        .single();
+      if (error) throw new ServerError(errorCode(error));
+      setTimers((prev) => ({ ...prev, [machine.id]: fromRow(data) }));
+    },
+    [userId],
+  );
 
-  const start: Timers['start'] = useCallback(
-    (machine, floor, label, minutes) => {
+  const start = useCallback<Timers['start']>(
+    (machine, minutes) => {
       const now = Date.now();
-      const timer = { machineId: machine.id, floor, startedAt: now, endsAt: now + minutes * MINUTE };
-      persist({ ...timers, [machine.id]: timer });
-      syncMachineNotification(t, notifTarget(machine, floor, label), new Date(timer.endsAt));
+      return write(machine, now, now + minutes * MINUTE);
     },
-    [timers, persist, t],
+    [write],
   );
 
-  const extend: Timers['extend'] = useCallback(
-    (machine, floor, label, minutes) => {
+  const extend = useCallback<Timers['extend']>(
+    async (machine, minutes) => {
       const cur = timers[machine.id];
-      if (!cur) return;
-      const timer = { ...cur, endsAt: Math.max(cur.endsAt, Date.now()) + minutes * MINUTE };
-      persist({ ...timers, [machine.id]: timer });
-      syncMachineNotification(t, notifTarget(machine, floor, label), new Date(timer.endsAt));
+      if (cur) await write(machine, cur.startedAt, Math.max(cur.endsAt, Date.now()) + minutes * MINUTE);
     },
-    [timers, persist, t],
+    [timers, write],
   );
 
-  const stop: Timers['stop'] = useCallback(
-    (machine, floor, label) => {
-      const { [machine.id]: _removed, ...rest } = timers;
-      persist(rest);
-      syncMachineNotification(t, notifTarget(machine, floor, label), null);
-    },
-    [timers, persist, t],
-  );
+  const stop = useCallback<Timers['stop']>(async (machine) => {
+    const { error } = await supabase.from('machine_timers').delete().eq('machine_id', machine.id);
+    if (error) throw new ServerError(errorCode(error));
+    setTimers(({ [machine.id]: _removed, ...rest }) => rest);
+  }, []);
 
-  const clear = useCallback(() => {
-    for (const timer of Object.values(timers)) {
-      const [floorStr, rest] = timer.machineId.split('-');
-      const kind = rest.startsWith('d') ? 'dryer' : 'washer';
-      const machine: Machine = { id: timer.machineId, kind, number: Number(rest.slice(1)) };
-      syncMachineNotification(t, notifTarget(machine, Number(floorStr), ''), null);
-    }
-    persist({});
-  }, [timers, persist, t]);
-
-  return <TimersContext.Provider value={{ timers, start, extend, stop, clear }}>{children}</TimersContext.Provider>;
+  return <TimersContext.Provider value={{ timers, start, extend, stop }}>{children}</TimersContext.Provider>;
 }
 
 export function useTimers(): Timers {

@@ -3,40 +3,14 @@
     "name": "Mosókonyha",
     "slug": "mosokonyha",
     "scheme": "mosokonyha",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "android": {
-      "package": "hu.mosokonyha.app",
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.POST_NOTIFICATIONS"
-      ],
-      "predictiveBackGestureEnabled": false
+    "web": {
+      "output": "single",
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-router",
-      "expo-secure-store",
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "A kamerát a recepción lévő QR-kód beolvasásához használjuk.",
-          "recordAudioAndroid": false
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/android-icon-monochrome.png",
-          "color": "#1565C0"
-        }
-      ]
-    ]
+    "plugins": ["expo-router"]
   }
 }

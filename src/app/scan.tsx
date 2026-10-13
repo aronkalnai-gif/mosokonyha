@@ -3,11 +3,11 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Button, Muted } from '../components/ui';
+import { goToProof } from '../lib/goToProof';
 import { errorText, useI18n } from '../lib/i18n';
 import { parseReceptionQr } from '../lib/machines';
 import { colors } from '../lib/theme';
 import { ServerError, useLaundry } from '../state/laundry';
-import { useTimers } from '../state/timers';
 
 export default function Scan() {
   const { t } = useI18n();
@@ -15,9 +15,9 @@ export default function Scan() {
   const mode = params.mode === 'return' ? 'return' : 'pickup';
   const floor = Number(params.floor);
   const { pickUp, returnKey } = useLaundry();
-  const { clear: clearTimers } = useTimers();
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
+  const [cameraFailed, setCameraFailed] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const handling = useRef(false);
 
@@ -30,19 +30,7 @@ export default function Scan() {
     setBusy(true);
     setMessage(null);
     try {
-      const row = mode === 'pickup' ? await pickUp(floor, code) : await returnKey(code);
-      if (mode === 'return') clearTimers();
-      router.replace({
-        pathname: '/proof',
-        params: {
-          kind: mode,
-          floor: String(row.floor),
-          pickedUpAt: row.picked_up_at,
-          returnedAt: row.returned_at ?? '',
-          overtime: String(row.overtime_minutes ?? 0),
-          fee: String(row.fee_huf ?? 0),
-        },
-      });
+      goToProof(mode, mode === 'pickup' ? await pickUp(floor, code) : await returnKey(code));
     } catch (e) {
       setMessage(errorText(t, e instanceof ServerError ? e.code : String(e)));
       setBusy(false);
@@ -54,12 +42,14 @@ export default function Scan() {
   const title = mode === 'pickup' ? t('scanPickupTitle', { floor }) : t('scanReturnTitle');
 
   if (!permission) return <View style={styles.center} />;
-  if (!permission.granted) {
+  if (!permission.granted || cameraFailed) {
     return (
       <View style={styles.center}>
         <Stack.Screen options={{ title }} />
-        <Muted style={styles.text}>{t('cameraNeeded')}</Muted>
-        <Button title={t('allowCamera')} onPress={requestPermission} />
+        <Muted style={styles.text}>{cameraFailed ? t('cameraFailed') : t('cameraNeeded')}</Muted>
+        {!cameraFailed && permission.canAskAgain && <Button title={t('allowCamera')} onPress={requestPermission} />}
+        {!permission.canAskAgain && !cameraFailed && <Muted style={styles.text}>{t('cameraFailed')}</Muted>}
+        <Button variant="ghost" title={t('back')} onPress={() => router.back()} />
       </View>
     );
   }
@@ -72,6 +62,7 @@ export default function Scan() {
         facing="back"
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         onBarcodeScanned={busy ? undefined : ({ data }) => onScanned(data)}
+        onMountError={() => setCameraFailed(true)}
       />
       <View style={styles.frame} pointerEvents="none" />
       <View style={styles.bottom}>

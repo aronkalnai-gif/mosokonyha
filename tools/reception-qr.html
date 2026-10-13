@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mosókonyha QR</title>
 <!--
-  Printable QR code for the reception. Open this file in a browser, paste the
-  secret and print the page.
+  Printable QR code for the reception. Open this file in a browser, enter the
+  site address and the secret, and print the page. The QR code is a link to
+  <site>/qr?c=<secret>, so it also works with the phone's own camera app.
 
   Get the secret in the Supabase SQL editor:
     select value from private.secrets where name = 'reception_qr';
@@ -30,22 +31,25 @@
 </head>
 <body>
   <div class="controls">
-    <input id="secret" placeholder="secret (private.secrets → reception_qr)">
+    <input id="site" placeholder="https://mosokonyha.example.hu"><br><br>
+    <input id="secret" placeholder="secret (private.secrets → reception_qr)"><br><br>
     <button onclick="make()">QR-kód</button>
   </div>
   <h1>🧺 Mosókonyha</h1>
-  <p>Kulcs felvételéhez és visszaadásához olvasd be az appban!</p>
-  <p><i>Scan in the app to pick up or return a laundry key.</i></p>
+  <p>Kulcs felvételéhez és visszaadásához olvasd be a telefonod kamerájával!</p>
+  <p><i>Scan with your phone's camera to pick up or return a laundry key.</i></p>
   <div id="qr"></div>
   <p>Utána mutasd meg a megjelenő képernyőt a recepciósnak.</p>
   <p><i>Then show the screen to the receptionist.</i></p>
 <script>
   function make() {
+    const site = document.getElementById('site').value.trim().replace(/\/+$/, '');
     const secret = document.getElementById('secret').value.trim();
+    if (!/^https:\/\/[^ ]+$/.test(site)) return alert('Enter the site address, starting with https://');
     if (!/^[0-9a-f]{16,}$/i.test(secret)) return alert('Invalid secret');
     const el = document.getElementById('qr');
     el.innerHTML = '';
-    new QRCode(el, { text: 'MOSOKONYHA:' + secret, width: 512, height: 512, correctLevel: QRCode.CorrectLevel.M });
+    new QRCode(el, { text: site + '/qr?c=' + secret, width: 512, height: 512, correctLevel: QRCode.CorrectLevel.M });
   }
 </script>
 </body>

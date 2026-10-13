@@ -12,8 +12,24 @@ export function machinesOnFloor(floor: number): Machine[] {
   return list;
 }
 
-/** Content of the printed QR code at the reception: "MOSOKONYHA:<secret>". */
+const SECRET = /^[0-9a-f]{16,}$/i;
+
+/**
+ * The printed QR code at the reception holds a link to this site's /qr page:
+ * "https://<site>/qr?c=<secret>". Returns the secret.
+ */
 export function parseReceptionQr(data: string): string | null {
-  const m = /^MOSOKONYHA:([0-9a-f]{16,})$/i.exec(data.trim());
-  return m ? m[1] : null;
+  const text = data.trim();
+  try {
+    const c = new URL(text).searchParams.get('c');
+    if (c && SECRET.test(c)) return c;
+  } catch {
+    // not a URL
+  }
+  const m = /^MOSOKONYHA:(.+)$/i.exec(text);
+  return m && SECRET.test(m[1]) ? m[1] : null;
+}
+
+export function isValidSecret(code: string | null | undefined): code is string {
+  return !!code && SECRET.test(code);
 }

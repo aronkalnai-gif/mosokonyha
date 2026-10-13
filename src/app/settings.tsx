@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button, Card, Muted } from '../components/ui';
 import { useI18n } from '../lib/i18n';
-import { getPushToken, hasPermission, requestPermission } from '../lib/notifications';
+import { isStandalone } from '../lib/push';
 import { colors } from '../lib/theme';
 import { formatHuf } from '../lib/time';
+import { usePushState } from '../lib/usePushState';
 import { useAuth } from '../state/auth';
 import { useLaundry } from '../state/laundry';
 
@@ -12,26 +13,25 @@ export default function Settings() {
   const { t, lang, setLang } = useI18n();
   const { profile, updateProfile, signOut } = useAuth();
   const { settings } = useLaundry();
+  const push = usePushState();
   const [name, setName] = useState(profile?.display_name ?? '');
   const [saving, setSaving] = useState(false);
-  const [notifOn, setNotifOn] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    hasPermission().then(setNotifOn);
-  }, []);
-
-  const enableNotifications = async () => {
-    const granted = await requestPermission();
-    setNotifOn(granted);
-    if (!granted) return Linking.openSettings();
-    const token = await getPushToken();
-    if (token) await updateProfile({ push_token: token });
-  };
 
   const saveName = async () => {
     setSaving(true);
     await updateProfile({ display_name: name.trim() }).finally(() => setSaving(false));
   };
+
+  const pushText =
+    push.state === 'on'
+      ? `✅ ${t('pushOn')}`
+      : push.state === 'ios-install'
+        ? t('pushIosText')
+        : push.state === 'denied'
+          ? t('pushDenied')
+          : push.state === 'unsupported'
+            ? t('pushUnsupported')
+            : t('pushCardText');
 
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
@@ -48,22 +48,24 @@ export default function Settings() {
       </Card>
 
       <Card style={styles.card}>
+        <Text style={styles.label}>{t('notifications')}</Text>
+        <Muted>{pushText}</Muted>
+        {push.state === 'off' && <Button small title={t('pushEnable')} onPress={push.enable} />}
+      </Card>
+
+      {!isStandalone() && (
+        <Card style={styles.card}>
+          <Text style={styles.label}>{t('installTitle')}</Text>
+          <Muted>{t('installText')}</Muted>
+        </Card>
+      )}
+
+      <Card style={styles.card}>
         <Text style={styles.label}>{t('language')}</Text>
         <View style={styles.row}>
           <Button small style={styles.flex} variant={lang === 'hu' ? 'primary' : 'secondary'} title="Magyar" onPress={() => setLang('hu')} />
           <Button small style={styles.flex} variant={lang === 'en' ? 'primary' : 'secondary'} title="English" onPress={() => setLang('en')} />
         </View>
-      </Card>
-
-      <Card style={styles.card}>
-        <Text style={styles.label}>{t('notifications')}</Text>
-        <Button
-          small
-          variant={notifOn ? 'ghost' : 'secondary'}
-          title={notifOn ? `✅ ${t('notificationsOn')}` : t('notificationsOff')}
-          onPress={enableNotifications}
-          disabled={notifOn === true}
-        />
       </Card>
 
       <Card style={styles.card}>

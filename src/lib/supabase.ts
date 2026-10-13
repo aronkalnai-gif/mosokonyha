@@ -47,7 +47,6 @@ export type Profile = {
   id: string;
   email: string;
   display_name: string | null;
-  push_token: string | null;
   lang: 'hu' | 'en';
   is_admin: boolean;
 };

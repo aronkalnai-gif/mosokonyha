@@ -1,7 +1,5 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
-import { useI18n } from '../lib/i18n';
-import { syncKeyNotifications } from '../lib/notifications';
 import {
   Checkout,
   DEFAULT_SETTINGS,
@@ -10,7 +8,6 @@ import {
   errorCode,
   supabase,
 } from '../lib/supabase';
-import { keyState } from '../lib/time';
 import { useAuth } from './auth';
 
 export class ServerError extends Error {
@@ -43,7 +40,6 @@ async function rpc<R>(fn: string, args: Record<string, unknown>): Promise<R> {
 
 export function LaundryProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
-  const { t } = useI18n();
   const userId = session?.user.id;
   const [floors, setFloors] = useState<FloorStatus[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -94,18 +90,6 @@ export function LaundryProvider({ children }: { children: ReactNode }) {
   }, [userId, refresh]);
 
   const myFloor = useMemo(() => floors.find((f) => f.holder_id && f.holder_id === userId), [floors, userId]);
-
-  // Keep the lock-screen countdown and reminders in sync with the key we hold.
-  const myPickup = myFloor?.picked_up_at;
-  const myFloorNo = myFloor?.floor;
-  useEffect(() => {
-    if (!loaded) return;
-    const key =
-      myPickup && myFloorNo
-        ? { floor: myFloorNo, dueAt: keyState(new Date(myPickup), Date.now(), settings).dueAt, feeHuf: settings.fee_huf }
-        : null;
-    syncKeyNotifications(t, key).catch((e) => console.warn('Key notifications', e));
-  }, [loaded, myPickup, myFloorNo, settings, t]);
 
   const pickUp = useCallback(
     async (floor: number, code: string) => {

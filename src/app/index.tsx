@@ -1,6 +1,7 @@
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useDialog } from '../components/Dialog';
 import { KeyProgress } from '../components/KeyProgress';
 import { Button, Card, Muted, Pill } from '../components/ui';
 import { errorText, useI18n } from '../lib/i18n';
@@ -8,6 +9,7 @@ import { machinesOnFloor } from '../lib/machines';
 import { FloorStatus } from '../lib/supabase';
 import { colors } from '../lib/theme';
 import { useNow } from '../lib/useNow';
+import { usePushState } from '../lib/usePushState';
 import { useAuth } from '../state/auth';
 import { ServerError, useLaundry } from '../state/laundry';
 
@@ -55,6 +57,8 @@ export default function Home() {
           </Card>
         )}
 
+        <PushCard />
+
         {loaded && (
           <Text style={[styles.summary, { color: freeCount ? colors.free : colors.taken }]}>
             {freeCount ? t('freeCount', { n: freeCount }) : t('noneFree')}
@@ -73,6 +77,8 @@ function FloorCard({ status, now }: { status: FloorStatus; now: number }) {
   const { t } = useI18n();
   const { profile } = useAuth();
   const { myFloor, settings, watches, toggleWatch, forceReturn } = useLaundry();
+  const dialog = useDialog();
+  const push = usePushState();
   const [busy, setBusy] = useState(false);
 
   const free = !status.holder_id;
@@ -82,29 +88,31 @@ function FloorCard({ status, now }: { status: FloorStatus; now: number }) {
   const washers = machines.filter((m) => m.kind === 'washer').length;
 
   const onWatch = async () => {
-    if (!watching && !profile?.push_token) return Alert.alert(t('notifyMe'), t('noPushToken'));
+    // Without notifications there is no way to tell you, so turn them on first.
+    if (!watching && push.state !== 'on') {
+      const state = await push.enable();
+      if (state !== 'on') return dialog.alert(t('notifyMe'), `${t('pushNeeded')}\n\n${pushHelp(t, state)}`);
+    }
     setBusy(true);
     try {
       await toggleWatch(status.floor);
     } catch (e) {
-      Alert.alert(errorText(t, e instanceof ServerError ? e.code : String(e)));
+      dialog.alert(errorText(t, e instanceof ServerError ? e.code : String(e)));
     } finally {
       setBusy(false);
     }
   };
 
-  const onForce = () =>
-    Alert.alert(t('forceReturn'), t('forceReturnConfirm', { floor: status.floor, name: status.holder_name ?? '' }), [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('forceReturn'),
-        style: 'destructive',
-        onPress: () =>
-          forceReturn(status.floor).catch((e) =>
-            Alert.alert(errorText(t, e instanceof ServerError ? e.code : String(e))),
-          ),
-      },
-    ]);
+  const onForce = async () => {
+    const ok = await dialog.confirm(
+      t('forceReturn'),
+      t('forceReturnConfirm', { floor: status.floor, name: status.holder_name ?? '' }),
+      t('forceReturn'),
+      true,
+    );
+    if (!ok) return;
+    forceReturn(status.floor).catch((e) => dialog.alert(errorText(t, e instanceof ServerError ? e.code : String(e))));
+  };
 
   return (
     <Card style={[styles.floorCard, mine ? styles.mineCard : {}]}>
@@ -154,9 +162,37 @@ function FloorCard({ status, now }: { status: FloorStatus; now: number }) {
   );
 }
 
+/** Explains what to do when notifications aren't on. */
+function pushHelp(t: ReturnType<typeof useI18n>['t'], state: string | null): string {
+  if (state === 'ios-install') return t('pushIosText');
+  if (state === 'denied') return t('pushDenied');
+  if (state === 'unsupported') return t('pushUnsupported');
+  return '';
+}
+
+function PushCard() {
+  const { t } = useI18n();
+  const { state, enable } = usePushState();
+  const [hidden, setHidden] = useState(false);
+  if (hidden || (state !== 'off' && state !== 'ios-install')) return null;
+
+  return (
+    <Card style={styles.pushCard}>
+      <Text style={styles.pushTitle}>🔔 {state === 'ios-install' ? t('pushIosTitle') : t('pushCardTitle')}</Text>
+      <Muted>{state === 'ios-install' ? t('pushIosText') : t('pushCardText')}</Muted>
+      <View style={styles.row}>
+        {state === 'off' && <Button small style={styles.flex} title={t('pushEnable')} onPress={enable} />}
+        <Button small variant="ghost" title={t('later')} onPress={() => setHidden(true)} />
+      </View>
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
   list: { padding: 16, gap: 12, paddingBottom: 40 },
   gear: { fontSize: 22 },
+  pushCard: { gap: 8, backgroundColor: '#E3F2FD', borderColor: '#BBDEFB' },
+  pushTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   myKey: { borderColor: colors.primary, borderWidth: 2, gap: 10 },
   myKeyLabel: { color: colors.primary, fontWeight: '700', textTransform: 'uppercase', fontSize: 12, letterSpacing: 1 },
   summary: { fontSize: 15, fontWeight: '700', marginTop: 4 },

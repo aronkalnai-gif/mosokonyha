@@ -1,5 +1,6 @@
 import { Session } from '@supabase/supabase-js';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import { forgetThisBrowser, resyncPush } from '../lib/push';
 import { Profile, supabase } from '../lib/supabase';
 
 type Auth = {
@@ -7,7 +8,7 @@ type Auth = {
   profile: Profile | null;
   /** True until we know whether there is a session (and its profile). */
   loading: boolean;
-  updateProfile: (patch: Partial<Pick<Profile, 'display_name' | 'push_token' | 'lang'>>) => Promise<void>;
+  updateProfile: (patch: Partial<Pick<Profile, 'display_name' | 'lang'>>) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(data);
         setProfileLoaded(true);
       });
+    resyncPush().catch((e) => console.warn('Push', e));
   }, [userId]);
 
   const updateProfile = useCallback<Auth['updateProfile']>(
@@ -56,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    if (userId) await supabase.from('profiles').update({ push_token: null }).eq('id', userId);
+    await forgetThisBrowser().catch((e) => console.warn('Push', e));
     await supabase.auth.signOut();
   }, [userId]);
 

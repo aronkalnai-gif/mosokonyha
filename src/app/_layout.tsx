@@ -1,27 +1,34 @@
-import { Stack } from 'expo-router';
+import { Stack, router, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { DialogProvider } from '../components/Dialog';
 import { I18nProvider, useI18n } from '../lib/i18n';
-import { getPushToken, requestPermission, setupChannels } from '../lib/notifications';
+import { hasPendingQr, rememberQrFromUrl } from '../lib/pendingQr';
+import { registerServiceWorker } from '../lib/push';
 import { colors } from '../lib/theme';
 import { AuthProvider, useAuth } from '../state/auth';
 import { LaundryProvider } from '../state/laundry';
 import { TimersProvider } from '../state/timers';
 
+rememberQrFromUrl();
+
 export default function RootLayout() {
+  useEffect(registerServiceWorker, []);
   return (
     <SafeAreaProvider>
       <I18nProvider>
-        <AuthProvider>
-          <LaundryProvider>
-            <TimersProvider>
-              <StatusBar style="dark" />
-              <Routes />
-            </TimersProvider>
-          </LaundryProvider>
-        </AuthProvider>
+        <DialogProvider>
+          <AuthProvider>
+            <LaundryProvider>
+              <TimersProvider>
+                <StatusBar style="dark" />
+                <Routes />
+              </TimersProvider>
+            </LaundryProvider>
+          </AuthProvider>
+        </DialogProvider>
       </I18nProvider>
     </SafeAreaProvider>
   );
@@ -30,28 +37,22 @@ export default function RootLayout() {
 function Routes() {
   const { session, profile, loading, updateProfile } = useAuth();
   const { t, lang } = useI18n();
+  const pathname = usePathname();
 
-  useEffect(() => {
-    setupChannels(t);
-  }, [t]);
-
-  // After signing in: ask for notification permission and register for push.
+  // Keep the account's language in sync, so notifications arrive in it.
   const profileId = profile?.id;
-  useEffect(() => {
-    if (!profileId) return;
-    (async () => {
-      await requestPermission();
-      const token = await getPushToken();
-      if (token && token !== profile?.push_token) await updateProfile({ push_token: token });
-    })().catch((e) => console.warn('Push registration', e));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileId]);
-
-  // Keep the account's language in sync, so push messages arrive in it.
   useEffect(() => {
     if (profile && profile.lang !== lang) updateProfile({ lang }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang, profileId]);
+
+  const signedIn = !!session && !!profile;
+  const named = signedIn && !!profile.display_name;
+
+  // Continue to the reception page after signing in from a QR link.
+  useEffect(() => {
+    if (named && pathname !== '/qr' && hasPendingQr()) router.replace('/qr');
+  }, [named, pathname]);
 
   if (loading) {
     return (
@@ -60,9 +61,6 @@ function Routes() {
       </View>
     );
   }
-
-  const signedIn = !!session && !!profile;
-  const named = signedIn && !!profile.display_name;
 
   return (
     <Stack
@@ -74,13 +72,14 @@ function Routes() {
       }}
     >
       <Stack.Protected guard={!signedIn}>
-        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ headerShown: false, title: t('loginTitle') }} />
       </Stack.Protected>
       <Stack.Protected guard={signedIn && !named}>
         <Stack.Screen name="name" options={{ title: t('nameTitle') }} />
       </Stack.Protected>
       <Stack.Protected guard={named}>
         <Stack.Screen name="index" options={{ title: t('appName') }} />
+        <Stack.Screen name="qr" options={{ title: t('qrTitle') }} />
         <Stack.Screen name="scan" options={{ title: '' }} />
         <Stack.Screen name="room" options={{ title: '' }} />
         <Stack.Screen name="proof" options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }} />

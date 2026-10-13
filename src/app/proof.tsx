@@ -1,4 +1,3 @@
-import { useKeepAwake } from 'expo-keep-awake';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
@@ -7,6 +6,7 @@ import { Button } from '../components/ui';
 import { useI18n } from '../lib/i18n';
 import { formatClock, formatHuf, keyState } from '../lib/time';
 import { useNow } from '../lib/useNow';
+import { useWakeLock } from '../lib/useWakeLock';
 import { useAuth } from '../state/auth';
 import { useLaundry } from '../state/laundry';
 
@@ -15,7 +15,7 @@ import { useLaundry } from '../state/laundry';
  * and ticking clock make it easy to tell apart from a screenshot.
  */
 export default function Proof() {
-  useKeepAwake();
+  useWakeLock();
   const { t } = useI18n();
   const { profile } = useAuth();
   const { settings } = useLaundry();
