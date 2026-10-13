@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mosókonyha QR</title>
+<!--
+  Printable QR code for the reception. Open this file in a browser, paste the
+  secret and print the page.
+
+  Get the secret in the Supabase SQL editor:
+    select value from private.secrets where name = 'reception_qr';
+
+  To invalidate a printed code (e.g. if a photo of it was shared), generate a
+  new secret and print a new code:
+    update private.secrets set value = encode(extensions.gen_random_bytes(18), 'hex')
+    where name = 'reception_qr';
+-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; text-align: center; padding: 1.5cm; color: #14202E; }
+  h1 { font-size: 32pt; margin: 0; }
+  p { font-size: 16pt; margin: .3cm 0; }
+  #qr { display: inline-block; margin: 1cm auto; }
+  #qr img, #qr canvas { width: 12cm; height: 12cm; }
+  .controls { margin-bottom: 1cm; }
+  input { font-size: 14pt; padding: 6px; width: 28em; max-width: 90%; }
+  @media print { .controls { display: none; } }
+</style>
+</head>
+<body>
+  <div class="controls">
+    <input id="secret" placeholder="secret (private.secrets → reception_qr)">
+    <button onclick="make()">QR-kód</button>
+  </div>
+  <h1>🧺 Mosókonyha</h1>
+  <p>Kulcs felvételéhez és visszaadásához olvasd be az appban!</p>
+  <p><i>Scan in the app to pick up or return a laundry key.</i></p>
+  <div id="qr"></div>
+  <p>Utána mutasd meg a megjelenő képernyőt a recepciósnak.</p>
+  <p><i>Then show the screen to the receptionist.</i></p>
+<script>
+  function make() {
+    const secret = document.getElementById('secret').value.trim();
+    if (!/^[0-9a-f]{16,}$/i.test(secret)) return alert('Invalid secret');
+    const el = document.getElementById('qr');
+    el.innerHTML = '';
+    new QRCode(el, { text: 'MOSOKONYHA:' + secret, width: 512, height: 512, correctLevel: QRCode.CorrectLevel.M });
+  }
+</script>
+</body>
+</html>
