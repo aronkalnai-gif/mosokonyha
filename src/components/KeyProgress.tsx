@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useI18n } from '../lib/i18n';
 import { Settings } from '../lib/supabase';
-import { colors } from '../lib/theme';
+import { colors, font } from '../lib/theme';
 import { formatClock, formatDuration, formatHuf, keyState } from '../lib/time';
 import { ProgressBar } from './ui';
 
@@ -23,10 +23,7 @@ export function KeyProgress({
 
   return (
     <View style={styles.wrap}>
-      <ProgressBar
-        progress={k.progress}
-        color={k.overdue ? colors.danger : k.progress > 0.85 ? colors.taken : colors.primary}
-      />
+      <ProgressBar progress={k.progress} color={k.overdue ? colors.danger : k.progress > 0.85 ? colors.taken : colors.text} />
       <View style={styles.row}>
         <Text style={styles.small}>{t('since', { time: formatClock(picked) })}</Text>
         {k.overdue ? (
@@ -37,7 +34,8 @@ export function KeyProgress({
       </View>
       {mine && k.overdue && (
         <View style={styles.fee}>
-          <Text style={styles.feeText}>{t('toPay', { fee: formatHuf(k.fee) })}</Text>
+          <Text style={styles.feeLabel}>{t('toPayLabel')}</Text>
+          <Text style={styles.feeText}>{formatHuf(k.fee)}</Text>
         </View>
       )}
     </View>
@@ -45,10 +43,20 @@ export function KeyProgress({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 6 },
+  wrap: { gap: 8 },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   small: { fontSize: 13, color: colors.muted, fontVariant: ['tabular-nums'] },
-  danger: { color: colors.danger, fontWeight: '700' },
-  fee: { backgroundColor: colors.dangerBg, borderRadius: 10, padding: 10, marginTop: 4 },
-  feeText: { color: colors.danger, fontWeight: '800', fontSize: 18, textAlign: 'center' },
+  danger: { color: colors.danger, fontWeight: font.medium },
+  fee: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    backgroundColor: colors.dangerBg,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  feeLabel: { color: colors.danger, fontSize: 14 },
+  feeText: { color: colors.danger, fontWeight: font.medium, fontSize: 20, fontVariant: ['tabular-nums'] },
 });

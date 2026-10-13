@@ -2,12 +2,12 @@
 // camera (the code is a link to /qr?c=<secret>).
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button, Card, Muted } from '../components/ui';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button, Muted, Status } from '../components/ui';
 import { useAfterKeyChange } from '../lib/useAfterKeyChange';
 import { errorText, useI18n } from '../lib/i18n';
 import { holderLabel, isValidSecret } from '../lib/machines';
-import { colors } from '../lib/theme';
+import { colors, font, radius } from '../lib/theme';
 import { ServerError, useLaundry } from '../state/laundry';
 import { takePendingQr } from '../lib/pendingQr';
 
@@ -25,7 +25,7 @@ export default function Qr() {
 
   if (!isValidSecret(code)) {
     return (
-      <View style={styles.wrap}>
+      <View style={styles.page}>
         <Muted>{t('qrInvalid')}</Muted>
         <Button title={t('back')} onPress={() => router.replace('/')} />
       </View>
@@ -45,31 +45,47 @@ export default function Qr() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.wrap}>
+    <ScrollView contentContainerStyle={styles.page}>
       {!loaded ? null : myFloor ? (
-        <Card style={styles.card}>
-          <Text style={styles.big}>{t('qrReturnIntro', { floor: myFloor.floor })}</Text>
+        <View style={styles.returnCard}>
+          <Text style={styles.title}>{t('qrReturnIntro', { floor: myFloor.floor })}</Text>
           <Button title={t('returnKey')} onPress={() => run('return')} loading={busy === 'return'} />
-        </Card>
+        </View>
       ) : (
         <>
-          <Text style={styles.big}>{t('qrPickIntro')}</Text>
-          {floors.map((f) =>
-            f.holder_id ? (
-              <View key={f.floor} style={styles.taken}>
-                <Text style={styles.takenFloor}>{t('floor', { floor: f.floor })}</Text>
-                <Muted>{t('qrTakenBy', { name: holderLabel(f.holder_name, f.holder_room) })}</Muted>
-              </View>
-            ) : (
-              <Button
-                key={f.floor}
-                title={`🔑 ${t('floor', { floor: f.floor })}`}
-                onPress={() => run(f.floor)}
-                loading={busy === f.floor}
-                disabled={busy !== null}
-              />
-            ),
-          )}
+          <Text style={styles.title}>{t('qrPickIntro')}</Text>
+          <View style={styles.list}>
+            {floors.map((f, i) => {
+              const last = i === floors.length - 1;
+              if (f.holder_id) {
+                return (
+                  <View key={f.floor} style={[styles.item, !last && styles.divider]}>
+                    <Text style={[styles.floorNumber, styles.dim]}>{f.floor}</Text>
+                    <View style={styles.itemBody}>
+                      <Text style={[styles.itemTitle, styles.dim]}>{t('floor', { floor: f.floor })}</Text>
+                      <Text style={styles.itemSub}>{t('qrTakenBy', { name: holderLabel(f.holder_name, f.holder_room) })}</Text>
+                    </View>
+                  </View>
+                );
+              }
+              return (
+                <Pressable
+                  key={f.floor}
+                  onPress={() => run(f.floor)}
+                  disabled={busy !== null}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.item, !last && styles.divider, pressed && { opacity: 0.6 }]}
+                >
+                  <Text style={styles.floorNumber}>{f.floor}</Text>
+                  <View style={styles.itemBody}>
+                    <Text style={styles.itemTitle}>{t('floor', { floor: f.floor })}</Text>
+                    <Status label={t('free')} color={colors.free} />
+                  </View>
+                  {busy === f.floor ? <ActivityIndicator color={colors.text} /> : <Text style={styles.arrow}>→</Text>}
+                </Pressable>
+              );
+            })}
+          </View>
         </>
       )}
       {error && <Text style={styles.error}>{error}</Text>}
@@ -79,18 +95,17 @@ export default function Qr() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: 16, gap: 12, paddingBottom: 40 },
-  card: { gap: 12 },
-  big: { fontSize: 18, fontWeight: '700', color: colors.text },
-  taken: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    minHeight: 48,
-    borderRadius: 12,
-    backgroundColor: colors.track,
-  },
-  takenFloor: { fontSize: 16, fontWeight: '600', color: colors.muted },
-  error: { color: colors.danger, fontWeight: '700', textAlign: 'center' },
+  page: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 48, gap: 20 },
+  title: { fontSize: 28, fontWeight: font.light, color: colors.text, letterSpacing: -0.5 },
+  returnCard: { backgroundColor: colors.sand, borderRadius: radius, padding: 20, gap: 18 },
+  list: { backgroundColor: colors.card, borderRadius: radius, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 20 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 18, paddingVertical: 16 },
+  divider: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  floorNumber: { width: 30, fontSize: 30, fontWeight: font.light, color: colors.text, letterSpacing: -1 },
+  itemBody: { flex: 1, gap: 4 },
+  itemTitle: { fontSize: 15, fontWeight: font.medium, color: colors.text },
+  itemSub: { fontSize: 13, color: colors.muted },
+  dim: { color: colors.faint },
+  arrow: { fontSize: 20, color: colors.text },
+  error: { color: colors.danger, textAlign: 'center' },
 });

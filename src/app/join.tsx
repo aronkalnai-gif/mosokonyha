@@ -5,7 +5,7 @@ import { Button, Muted } from '../components/ui';
 import { errorText, useI18n } from '../lib/i18n';
 import { isValidSecret, ROOM_PATTERN } from '../lib/machines';
 import { peekPendingQr, takePendingQr } from '../lib/pendingQr';
-import { colors } from '../lib/theme';
+import { colors, font } from '../lib/theme';
 import { useAuth } from '../state/auth';
 import { ServerError } from '../state/errors';
 
@@ -79,19 +79,19 @@ export default function Join() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: 20, gap: 14 },
+  wrap: { paddingHorizontal: 24, paddingTop: 8, gap: 18 },
   row: { flexDirection: 'row', gap: 10 },
   nameCol: { flex: 1, gap: 6 },
   roomCol: { width: 110, gap: 6 },
-  label: { fontSize: 13, fontWeight: '600', color: colors.muted },
+  label: { fontSize: 11, fontWeight: font.semibold, color: colors.muted, letterSpacing: 1.2, textTransform: 'uppercase' },
   input: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 17,
+    paddingVertical: 13,
+    fontSize: 16,
     color: colors.text,
   },
   error: { color: colors.danger },

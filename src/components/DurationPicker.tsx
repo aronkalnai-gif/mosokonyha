@@ -1,7 +1,7 @@
 // Hours + minutes scroll wheels, like the iPhone Timer.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../lib/theme';
+import { colors, font } from '../lib/theme';
 
 const ITEM = 40; // row height
 const VISIBLE = 5; // rows shown; the middle one is selected
@@ -111,13 +111,13 @@ const styles = StyleSheet.create({
     right: 0,
     top: ITEM * 2,
     height: ITEM,
-    borderRadius: 10,
-    backgroundColor: colors.track,
+    borderRadius: 12,
+    backgroundColor: colors.sand,
   },
   wheel: { width: 130, flexDirection: 'row', alignItems: 'center' },
   list: { height: ITEM * VISIBLE, flexGrow: 0, width: 64 },
   content: { paddingVertical: ITEM * 2 },
   item: { height: ITEM, alignItems: 'flex-end', justifyContent: 'center', paddingRight: 8 },
-  num: { fontSize: 24, color: colors.text, fontVariant: ['tabular-nums'] },
-  unit: { fontSize: 17, fontWeight: '600', color: colors.text },
+  num: { fontSize: 26, fontWeight: font.light, color: colors.text, fontVariant: ['tabular-nums'] },
+  unit: { fontSize: 15, fontWeight: font.medium, color: colors.text },
 });

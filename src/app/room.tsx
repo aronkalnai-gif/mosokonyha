@@ -1,12 +1,13 @@
 import { router, Stack } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DurationPicker } from '../components/DurationPicker';
+import { MachineGlyph } from '../components/icons';
 import { KeyProgress } from '../components/KeyProgress';
-import { Button, Card, Muted, ProgressBar } from '../components/ui';
+import { Button, Eyebrow, Muted, ProgressBar } from '../components/ui';
 import { errorText, useI18n } from '../lib/i18n';
 import { Machine, machinesOnFloor } from '../lib/machines';
-import { colors } from '../lib/theme';
+import { colors, font, radius } from '../lib/theme';
 import { formatClock, formatDuration } from '../lib/time';
 import { useNow } from '../lib/useNow';
 import { ServerError, useLaundry } from '../state/laundry';
@@ -28,7 +29,7 @@ export default function Room() {
     return (
       <View style={styles.empty}>
         <Muted>{t('noKey')}</Muted>
-        <Button title={t('back')} onPress={() => router.back()} />
+        <Button variant="secondary" title={t('back')} onPress={() => router.back()} />
       </View>
     );
   }
@@ -38,18 +39,23 @@ export default function Room() {
   const label = (m: Machine) => (m.kind === 'washer' ? t('washer', { n: m.number }) : t('dryer'));
 
   return (
-    <ScrollView contentContainerStyle={styles.wrap}>
-      <Stack.Screen options={{ title: t('roomTitle', { floor }) }} />
+    <ScrollView contentContainerStyle={styles.page}>
+      <Stack.Screen options={{ title: '' }} />
 
-      <Card style={styles.keyCard}>
-        <Text style={styles.section}>{t('keyTime')}</Text>
-        <KeyProgress pickedUpAt={myFloor.picked_up_at} now={now} settings={settings} mine />
-      </Card>
+      <View style={styles.head}>
+        <Text style={styles.title}>{t('roomTitle', { floor })}</Text>
+        <Muted>{t('tapToStart')}</Muted>
+      </View>
 
       <View style={styles.grid}>
         {machines.map((m) => (
           <MachineTile key={m.id} machine={m} label={label(m)} timer={timers[m.id]} now={now} onPress={() => setSelected(m)} />
         ))}
+      </View>
+
+      <View style={styles.keyCard}>
+        <Eyebrow>{t('keyTime')}</Eyebrow>
+        <KeyProgress pickedUpAt={myFloor.picked_up_at} now={now} settings={settings} mine />
       </View>
 
       <Button
@@ -87,20 +93,6 @@ function MachineTile({
   const { t } = useI18n();
   const running = !!timer && timer.endsAt > now;
   const finished = !!timer && timer.endsAt <= now;
-  const spin = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (!running) return;
-    spin.setValue(0);
-    const anim = Animated.loop(
-      Animated.timing(spin, { toValue: 1, duration: 2500, easing: Easing.linear, useNativeDriver: true }),
-    );
-    anim.start();
-    return () => anim.stop();
-  }, [running, spin]);
-
-  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-  const accent = machine.kind === 'washer' ? colors.primary : '#6A1B9A';
   const progress = timer ? (now - timer.startedAt) / (timer.endsAt - timer.startedAt) : 0;
 
   return (
@@ -108,32 +100,29 @@ function MachineTile({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.tile, finished && styles.tileDone, pressed && { opacity: 0.8 }]}
+      style={({ pressed }) => [styles.tile, running && styles.tileRunning, pressed && { opacity: 0.75 }]}
     >
-      {/* control panel strip */}
-      <View style={styles.panel}>
-        <View style={[styles.led, { backgroundColor: running ? '#43A047' : finished ? '#FB8C00' : '#B0BEC5' }]} />
+      <View style={styles.tileTop}>
         <Text style={styles.tileLabel} numberOfLines={1}>
           {label}
         </Text>
+        <View style={[styles.dot, { backgroundColor: running ? colors.free : finished ? colors.taken : colors.border }]} />
       </View>
-      {/* door */}
-      <View style={[styles.door, { borderColor: accent }]}>
-        <Animated.View style={[styles.drum, running && { transform: [{ rotate }] }]}>
-          <Text style={styles.drumIcon}>{machine.kind === 'washer' ? '🫧' : '🌀'}</Text>
-          <View style={[styles.paddle, { backgroundColor: accent }]} />
-        </Animated.View>
+
+      <View style={styles.glyph}>
+        <MachineGlyph size={64} color={running ? colors.text : colors.faint} running={running} />
       </View>
+
       {running ? (
-        <>
+        <View style={styles.tileStatus}>
           <Text style={styles.remaining}>{formatDuration(timer.endsAt - now)}</Text>
-          <ProgressBar progress={progress} color={accent} height={6} />
-          <Text style={styles.tileHint}>{formatClock(new Date(timer.endsAt))}</Text>
-        </>
-      ) : finished ? (
-        <Text style={[styles.remaining, { color: colors.taken }]}>{t('finished')}</Text>
+          <ProgressBar progress={progress} color={colors.text} height={2} />
+          <Text style={styles.tileHint}>{t('finishesAt', { time: formatClock(new Date(timer.endsAt)) })}</Text>
+        </View>
       ) : (
-        <Text style={styles.tileHint}>{t('tapToStart')}</Text>
+        <View style={styles.tileStatus}>
+          <Text style={[styles.idle, finished && { color: colors.taken }]}>{finished ? t('finished') : t('idle')}</Text>
+        </View>
       )}
     </Pressable>
   );
@@ -177,22 +166,19 @@ function TimerSheet({
     <Modal transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
       <View style={styles.sheet}>
-        <Text style={styles.sheetTitle}>{t('setTimer', { machine: label })}</Text>
+        <View style={styles.handle} />
+        <Eyebrow>{t('timer')}</Eyebrow>
+        <Text style={styles.sheetTitle}>{label}</Text>
 
         {running ? (
           <>
             <Text style={styles.bigTime}>{formatDuration(timer.endsAt - now)}</Text>
-            <Text style={styles.finishes}>🔔 {t('finishesAt', { time: formatClock(new Date(timer.endsAt)) })}</Text>
+            <Text style={styles.finishes}>{t('finishesAt', { time: formatClock(new Date(timer.endsAt)) })}</Text>
             <View style={styles.row}>
               <Button style={styles.flex} variant="secondary" title={t('add1')} onPress={() => act(() => extend(machine, 1))} />
               <Button style={styles.flex} variant="secondary" title={t('add5')} onPress={() => act(() => extend(machine, 5))} />
-              <Button
-                style={styles.flex}
-                variant="danger"
-                title={t('stop')}
-                onPress={() => act(() => stop(machine), true)}
-              />
             </View>
+            <Button variant="danger" title={t('stop')} onPress={() => act(() => stop(machine), true)} />
           </>
         ) : (
           <>
@@ -201,7 +187,7 @@ function TimerSheet({
                 <Pressable
                   key={p}
                   onPress={() => setMinutes(p)}
-                  style={[styles.preset, minutes === p && styles.presetOn]}
+                  style={({ pressed }) => [styles.preset, minutes === p && styles.presetOn, pressed && { opacity: 0.7 }]}
                 >
                   <Text style={[styles.presetText, minutes === p && styles.presetTextOn]}>{t('minutes', { n: p })}</Text>
                 </Pressable>
@@ -214,17 +200,15 @@ function TimerSheet({
               minutesLabel={t('minutesUnit')}
             />
             <Text style={styles.finishes}>
-              {minutes > 0 ? `🔔 ${t('finishesAt', { time: formatClock(new Date(now + minutes * 60_000)) })}` : ' '}
+              {minutes > 0 ? t('finishesAt', { time: formatClock(new Date(now + minutes * 60_000)) }) : ' '}
             </Text>
-            {timer && (
-              <Button variant="ghost" title={t('stop')} onPress={() => act(() => stop(machine), true)} />
-            )}
             <Button
               title={t('start')}
               onPress={() => act(() => start(machine, minutes), true)}
               loading={busy}
               disabled={minutes < 1}
             />
+            {timer && <Button variant="ghost" title={t('stop')} onPress={() => act(() => stop(machine), true)} />}
           </>
         )}
         {error && <Text style={styles.error}>{error}</Text>}
@@ -235,68 +219,57 @@ function TimerSheet({
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: 16, gap: 16, paddingBottom: 40 },
+  page: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 48, gap: 20 },
   empty: { flex: 1, padding: 24, gap: 16, justifyContent: 'center' },
-  keyCard: { gap: 8 },
-  section: { fontWeight: '700', color: colors.text, fontSize: 15 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
+  head: { gap: 6 },
+  title: { fontSize: 30, fontWeight: font.light, color: colors.text, letterSpacing: -0.6 },
+
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   tile: {
-    width: '47%',
-    backgroundColor: '#FAFCFF',
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: colors.border,
-    padding: 12,
-    alignItems: 'center',
-    gap: 8,
-  },
-  tileDone: { borderColor: colors.taken },
-  panel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'stretch',
-    backgroundColor: colors.track,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  led: { width: 10, height: 10, borderRadius: 5 },
-  tileLabel: { flex: 1, fontWeight: '700', color: colors.text, fontSize: 13 },
-  door: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    borderWidth: 6,
-    backgroundColor: '#E3F2FD',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  drum: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: '#BBDEFB' },
-  drumIcon: { fontSize: 30 },
-  paddle: { position: 'absolute', top: 4, width: 14, height: 6, borderRadius: 3 },
-  remaining: { fontSize: 22, fontWeight: '800', color: colors.text, fontVariant: ['tabular-nums'] },
-  tileHint: { fontSize: 12, color: colors.muted, textAlign: 'center' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
-  sheet: {
+    flexBasis: '47%',
+    flexGrow: 1,
     backgroundColor: colors.card,
-    padding: 20,
+    borderRadius: radius,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
     gap: 14,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+  },
+  tileRunning: { borderColor: colors.text },
+  tileTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  tileLabel: { fontSize: 14, fontWeight: font.medium, color: colors.text },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  glyph: { alignItems: 'center', paddingVertical: 4 },
+  tileStatus: { gap: 6, minHeight: 52, justifyContent: 'flex-end' },
+  remaining: { fontSize: 26, fontWeight: font.light, color: colors.text, fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
+  idle: { fontSize: 13, color: colors.muted },
+  tileHint: { fontSize: 12, color: colors.muted },
+
+  keyCard: { backgroundColor: colors.sand, borderRadius: radius, padding: 20, gap: 10 },
+
+  backdrop: { flex: 1, backgroundColor: 'rgba(35,38,43,0.28)' },
+  sheet: {
+    backgroundColor: colors.bg,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 24,
+    gap: 14,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     width: '100%',
     maxWidth: 560,
     alignSelf: 'center',
   },
-  error: { color: colors.danger, textAlign: 'center' },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
+  handle: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 8 },
+  sheetTitle: { fontSize: 24, fontWeight: font.light, color: colors.text, marginTop: -6 },
   presets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  preset: { borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  presetOn: { borderColor: colors.primary, backgroundColor: '#E3F2FD' },
-  presetText: { color: colors.text, fontWeight: '600' },
-  presetTextOn: { color: colors.primary },
-  finishes: { textAlign: 'center', color: colors.muted, fontSize: 15 },
-  bigTime: { fontSize: 30, fontWeight: '800', color: colors.text, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  preset: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
+  presetOn: { borderColor: colors.text, backgroundColor: colors.text },
+  presetText: { color: colors.text, fontSize: 13 },
+  presetTextOn: { color: colors.primaryText },
+  finishes: { textAlign: 'center', color: colors.muted, fontSize: 14 },
+  bigTime: { fontSize: 56, fontWeight: font.light, color: colors.text, textAlign: 'center', fontVariant: ['tabular-nums'], letterSpacing: -1 },
+  error: { color: colors.danger, textAlign: 'center' },
   row: { flexDirection: 'row', gap: 10 },
   flex: { flex: 1 },
 });

@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useDialog } from '../components/Dialog';
-import { Button, Card, Muted } from '../components/ui';
+import { Button, Eyebrow } from '../components/ui';
 import { useI18n } from '../lib/i18n';
 import { isStandalone } from '../lib/push';
-import { colors } from '../lib/theme';
+import { colors, font } from '../lib/theme';
 import { ROOM_PATTERN } from '../lib/machines';
 import { formatHuf } from '../lib/time';
 import { usePushState } from '../lib/usePushState';
@@ -30,7 +30,7 @@ export default function Settings() {
 
   const pushText =
     push.state === 'on'
-      ? `✅ ${t('pushOn')}`
+      ? t('pushOn')
       : push.state === 'ios-install'
         ? t('pushIosText')
         : push.state === 'denied'
@@ -40,52 +40,57 @@ export default function Settings() {
             : t('pushCardText');
 
   return (
-    <ScrollView contentContainerStyle={styles.wrap}>
-      <Card style={styles.card}>
+    <ScrollView contentContainerStyle={styles.page}>
+      <Text style={styles.title}>{t('settings')}</Text>
+
+      <View style={styles.section}>
         <View style={styles.row}>
           <View style={styles.nameCol}>
-            <Text style={styles.label}>{t('displayName')}</Text>
+            <Eyebrow>{t('displayName')}</Eyebrow>
             <TextInput style={styles.input} value={name} onChangeText={setName} maxLength={60} />
           </View>
           <View style={styles.roomCol}>
-            <Text style={styles.label}>{t('roomLabel')}</Text>
+            <Eyebrow>{t('roomLabel')}</Eyebrow>
             <TextInput style={styles.input} value={room} onChangeText={setRoom} maxLength={10} inputMode="numeric" />
           </View>
         </View>
-        <Button small title={t('save')} onPress={saveName} loading={saving} disabled={!changed || !valid} />
-      </Card>
+        {changed && <Button small style={styles.start} title={t('save')} onPress={saveName} loading={saving} disabled={!valid} />}
+      </View>
 
-      <Card style={styles.card}>
-        <Text style={styles.label}>{t('notifications')}</Text>
-        <Muted>{pushText}</Muted>
-        {push.state === 'off' && <Button small title={t('pushEnable')} onPress={push.enable} />}
-      </Card>
+      <View style={styles.section}>
+        <Eyebrow>{t('notifications')}</Eyebrow>
+        <Text style={styles.body}>{pushText}</Text>
+        {push.state === 'off' && <Button small style={styles.start} title={t('pushEnable')} onPress={push.enable} />}
+      </View>
 
       {!isStandalone() && (
-        <Card style={styles.card}>
-          <Text style={styles.label}>{t('installTitle')}</Text>
-          <Muted>{t('installText')}</Muted>
-        </Card>
+        <View style={styles.section}>
+          <Eyebrow>{t('installTitle')}</Eyebrow>
+          <Text style={styles.body}>{t('installText')}</Text>
+        </View>
       )}
 
-      <Card style={styles.card}>
-        <Text style={styles.label}>{t('language')}</Text>
-        <View style={styles.row}>
-          <Button small style={styles.flex} variant={lang === 'hu' ? 'primary' : 'secondary'} title="Magyar" onPress={() => setLang('hu')} />
-          <Button small style={styles.flex} variant={lang === 'en' ? 'primary' : 'secondary'} title="English" onPress={() => setLang('en')} />
+      <View style={styles.section}>
+        <Eyebrow>{t('language')}</Eyebrow>
+        <View style={styles.segment}>
+          {(['hu', 'en'] as const).map((l) => (
+            <Pressable key={l} onPress={() => setLang(l)} style={[styles.segmentItem, lang === l && styles.segmentOn]}>
+              <Text style={[styles.segmentText, lang === l && styles.segmentTextOn]}>{l === 'hu' ? 'Magyar' : 'English'}</Text>
+            </Pressable>
+          ))}
         </View>
-      </Card>
+      </View>
 
-      <Card style={styles.card}>
-        <Text style={styles.label}>{t('rules')}</Text>
-        <Muted>
+      <View style={styles.section}>
+        <Eyebrow>{t('rules')}</Eyebrow>
+        <Text style={styles.body}>
           {t('rulesText', {
             hours: settings.key_minutes / 60,
             block: settings.fee_block_minutes,
             fee: formatHuf(settings.fee_huf),
           })}
-        </Muted>
-      </Card>
+        </Text>
+      </View>
 
       <Button
         variant="danger"
@@ -99,21 +104,27 @@ export default function Settings() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: 16, gap: 12, paddingBottom: 40 },
-  card: { gap: 10 },
-  label: { fontWeight: '700', color: colors.text, fontSize: 15 },
+  page: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 48, gap: 8 },
+  title: { fontSize: 30, fontWeight: font.light, color: colors.text, letterSpacing: -0.6, marginBottom: 12 },
+  section: { gap: 10, paddingVertical: 18, borderTopWidth: 1, borderTopColor: colors.border },
+  body: { fontSize: 15, color: colors.text, lineHeight: 22 },
   input: {
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 16,
     color: colors.text,
   },
   row: { flexDirection: 'row', gap: 10 },
-  nameCol: { flex: 1, gap: 6 },
-  roomCol: { width: 100, gap: 6 },
-  flex: { flex: 1 },
-  center: { textAlign: 'center' },
+  nameCol: { flex: 1, gap: 8 },
+  roomCol: { width: 100, gap: 8 },
+  start: { alignSelf: 'flex-start' },
+  segment: { flexDirection: 'row', alignSelf: 'flex-start', borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 3 },
+  segmentItem: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9 },
+  segmentOn: { backgroundColor: colors.text },
+  segmentText: { fontSize: 14, color: colors.text },
+  segmentTextOn: { color: colors.primaryText },
 });

@@ -2,7 +2,7 @@
 import { createContext, ReactNode, useCallback, useContext, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useI18n } from '../lib/i18n';
-import { colors } from '../lib/theme';
+import { colors, font } from '../lib/theme';
 
 type Request = {
   title: string;
@@ -73,11 +73,11 @@ export function useDialog(): Dialogs {
 }
 
 const styles = StyleSheet.create({
-  dim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 28 },
-  box: { backgroundColor: colors.card, borderRadius: 18, padding: 20, gap: 10, width: '100%', maxWidth: 420 },
-  title: { fontSize: 18, fontWeight: '700', color: colors.text },
-  message: { fontSize: 15, color: colors.text, lineHeight: 21 },
+  dim: { flex: 1, backgroundColor: 'rgba(35,38,43,0.28)', justifyContent: 'center', alignItems: 'center', padding: 28 },
+  box: { backgroundColor: colors.bg, borderRadius: 20, padding: 24, gap: 10, width: '100%', maxWidth: 400 },
+  title: { fontSize: 20, fontWeight: font.regular, color: colors.text, letterSpacing: -0.2 },
+  message: { fontSize: 15, color: colors.muted, lineHeight: 22 },
   buttons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 6 },
   btn: { paddingHorizontal: 12, paddingVertical: 8 },
-  btnText: { color: colors.primary, fontWeight: '700', fontSize: 15 },
+  btnText: { color: colors.text, fontWeight: font.medium, fontSize: 15 },
 });

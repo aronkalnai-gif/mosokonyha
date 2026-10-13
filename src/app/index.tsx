@@ -1,13 +1,15 @@
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDialog } from '../components/Dialog';
+import { SettingsIcon } from '../components/icons';
 import { KeyProgress } from '../components/KeyProgress';
-import { Button, Card, Muted, Pill } from '../components/ui';
+import { Button, Eyebrow, Muted, Status } from '../components/ui';
 import { errorText, useI18n } from '../lib/i18n';
-import { holderLabel, machinesOnFloor } from '../lib/machines';
+import { FLOORS, holderLabel, machinesOnFloor } from '../lib/machines';
 import { FloorStatus } from '../lib/supabase';
-import { colors } from '../lib/theme';
+import { colors, font, radius } from '../lib/theme';
 import { useNow } from '../lib/useNow';
 import { usePushState } from '../lib/usePushState';
 import { useAuth } from '../state/auth';
@@ -26,54 +28,62 @@ export default function Home() {
   };
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <Pressable onPress={() => router.push('/settings')} hitSlop={12} accessibilityLabel={t('settings')}>
-              <Text style={styles.gear}>⚙️</Text>
-            </Pressable>
-          ),
-        }}
-      />
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
-        contentContainerStyle={styles.list}
+        contentContainerStyle={styles.page}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        <View style={styles.header}>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>{t('appName')}</Text>
+            {loaded && (
+              <Text style={styles.summary}>
+                {freeCount ? t('freeOf', { n: freeCount, total: FLOORS.length }) : t('noneFree')}
+              </Text>
+            )}
+          </View>
+          <Pressable
+            onPress={() => router.push('/settings')}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={t('settings')}
+            style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.6 }]}
+          >
+            <SettingsIcon />
+          </Pressable>
+        </View>
+
         {myFloor?.picked_up_at && (
-          <Card style={styles.myKey}>
-            <Text style={styles.myKeyLabel}>{t('myKey')}</Text>
-            <Text style={styles.floorTitle}>{t('floor', { floor: myFloor.floor })}</Text>
+          <View style={styles.myKey}>
+            <Eyebrow>{t('myKey')}</Eyebrow>
+            <Text style={styles.myKeyFloor}>{t('floor', { floor: myFloor.floor })}</Text>
             <KeyProgress pickedUpAt={myFloor.picked_up_at} now={now} settings={settings} mine />
             <View style={styles.row}>
               <Button style={styles.flex} title={t('openRoom')} onPress={() => router.push('/room')} />
               <Button
                 style={styles.flex}
                 variant="secondary"
-                title={t('returnKey')}
+                title={t('returnShort')}
                 onPress={() => router.push({ pathname: '/scan', params: { mode: 'return' } })}
               />
             </View>
-          </Card>
+          </View>
         )}
 
         <PushCard />
 
-        {loaded && (
-          <Text style={[styles.summary, { color: freeCount ? colors.free : colors.taken }]}>
-            {freeCount ? t('freeCount', { n: freeCount }) : t('noneFree')}
-          </Text>
-        )}
-
-        {floors.map((f) => (
-          <FloorCard key={f.floor} status={f} now={now} />
-        ))}
+        <View style={styles.list}>
+          {floors.map((f, i) => (
+            <FloorRow key={f.floor} status={f} now={now} last={i === floors.length - 1} />
+          ))}
+        </View>
       </ScrollView>
-    </>
+    </SafeAreaView>
   );
 }
 
-function FloorCard({ status, now }: { status: FloorStatus; now: number }) {
+function FloorRow({ status, now, last }: { status: FloorStatus; now: number; last: boolean }) {
   const { t } = useI18n();
   const { profile } = useAuth();
   const { myFloor, settings, watches, toggleWatch, forceReturn } = useLaundry();
@@ -84,8 +94,7 @@ function FloorCard({ status, now }: { status: FloorStatus; now: number }) {
   const free = !status.holder_id;
   const mine = !!profile && status.holder_id === profile.id;
   const watching = watches.has(status.floor);
-  const machines = machinesOnFloor(status.floor);
-  const washers = machines.filter((m) => m.kind === 'washer').length;
+  const washers = machinesOnFloor(status.floor).filter((m) => m.kind === 'washer').length;
 
   const onWatch = async () => {
     // Without notifications there is no way to tell you, so turn them on first.
@@ -115,50 +124,52 @@ function FloorCard({ status, now }: { status: FloorStatus; now: number }) {
   };
 
   return (
-    <Card style={[styles.floorCard, mine ? styles.mineCard : {}]}>
-      <View style={styles.rowBetween}>
-        <View>
-          <Text style={styles.floorTitle}>{t('floor', { floor: status.floor })}</Text>
-          <Muted>{`🫧 ×${washers}   🌀 ×1`}</Muted>
-        </View>
-        {free ? (
-          <Pill label={t('free')} color={colors.free} bg={colors.freeBg} />
-        ) : (
-          <Pill label={t('taken')} color={colors.taken} bg={colors.takenBg} />
-        )}
+    <View style={[styles.floorRow, !last && styles.divider]}>
+      <View style={styles.floorNumberCol}>
+        <Text style={styles.floorNumber}>{status.floor}</Text>
+        <Text style={styles.floorWord}>{t('floorWord')}</Text>
       </View>
 
-      {!free && status.picked_up_at && (
-        <>
-          <Text style={styles.holder}>
-            🔑 {holderLabel(status.holder_name, status.holder_room)}
-            {mine ? ` (${t('you')})` : ''}
-          </Text>
-          <KeyProgress pickedUpAt={status.picked_up_at} now={now} settings={settings} mine={mine} />
-        </>
-      )}
+      <View style={styles.floorBody}>
+        <View style={styles.rowBetween}>
+          {free ? (
+            <Status label={t('free')} color={colors.free} />
+          ) : (
+            <Status label={mine ? t('yours') : t('taken')} color={mine ? colors.text : colors.taken} />
+          )}
+          <Text style={styles.machines}>{washers === 1 ? t('machinesSummary1') : t('machinesSummary', { n: washers })}</Text>
+        </View>
 
-      {free && !myFloor && (
-        <Button
-          title={t('pickUpKey')}
-          onPress={() => router.push({ pathname: '/scan', params: { mode: 'pickup', floor: String(status.floor) } })}
-        />
-      )}
+        {!free && status.picked_up_at && (
+          <>
+            <Text style={styles.holder}>{holderLabel(status.holder_name, status.holder_room)}</Text>
+            <KeyProgress pickedUpAt={status.picked_up_at} now={now} settings={settings} mine={mine} />
+          </>
+        )}
 
-      {!free && !mine && (
-        <View style={styles.row}>
+        {free && !myFloor && (
           <Button
             small
-            style={styles.flex}
-            variant={watching ? 'primary' : 'secondary'}
-            title={watching ? `🔔 ${t('notifying')}` : `🔕 ${t('notifyMe')}`}
-            onPress={onWatch}
-            loading={busy}
+            style={styles.action}
+            title={t('pickUpKey')}
+            onPress={() => router.push({ pathname: '/scan', params: { mode: 'pickup', floor: String(status.floor) } })}
           />
-          {profile?.is_admin && <Button small variant="danger" title={t('forceReturn')} onPress={onForce} />}
-        </View>
-      )}
-    </Card>
+        )}
+
+        {!free && !mine && (
+          <View style={[styles.row, styles.action]}>
+            <Button
+              small
+              variant={watching ? 'primary' : 'secondary'}
+              title={watching ? t('notifying') : t('notifyMe')}
+              onPress={onWatch}
+              loading={busy}
+            />
+            {profile?.is_admin && <Button small variant="danger" title={t('forceReturn')} onPress={onForce} />}
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -177,30 +188,44 @@ function PushCard() {
   if (hidden || (state !== 'off' && state !== 'ios-install')) return null;
 
   return (
-    <Card style={styles.pushCard}>
-      <Text style={styles.pushTitle}>🔔 {state === 'ios-install' ? t('pushIosTitle') : t('pushCardTitle')}</Text>
+    <View style={styles.pushCard}>
+      <Text style={styles.pushTitle}>{state === 'ios-install' ? t('pushIosTitle') : t('pushCardTitle')}</Text>
       <Muted>{state === 'ios-install' ? t('pushIosText') : t('pushCardText')}</Muted>
       <View style={styles.row}>
-        {state === 'off' && <Button small style={styles.flex} title={t('pushEnable')} onPress={enable} />}
+        {state === 'off' && <Button small title={t('pushEnable')} onPress={enable} />}
         <Button small variant="ghost" title={t('later')} onPress={() => setHidden(true)} />
       </View>
-    </Card>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { padding: 16, gap: 12, paddingBottom: 40 },
-  gear: { fontSize: 22 },
-  pushCard: { gap: 8, backgroundColor: '#E3F2FD', borderColor: '#BBDEFB' },
-  pushTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
-  myKey: { borderColor: colors.primary, borderWidth: 2, gap: 10 },
-  myKeyLabel: { color: colors.primary, fontWeight: '700', textTransform: 'uppercase', fontSize: 12, letterSpacing: 1 },
-  summary: { fontSize: 15, fontWeight: '700', marginTop: 4 },
-  floorCard: { gap: 10 },
-  mineCard: { borderColor: colors.primary },
-  floorTitle: { fontSize: 20, fontWeight: '700', color: colors.text },
-  holder: { fontSize: 15, color: colors.text, fontWeight: '600' },
-  row: { flexDirection: 'row', gap: 10 },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  page: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 48, gap: 20 },
+  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  headerText: { gap: 6, flex: 1 },
+  title: { fontSize: 34, fontWeight: font.light, color: colors.text, letterSpacing: -0.8 },
+  summary: { fontSize: 15, color: colors.muted },
+  iconButton: { padding: 8, marginTop: 6, borderRadius: 12 },
+
+  myKey: { backgroundColor: colors.sand, borderRadius: radius, padding: 20, gap: 12 },
+  myKeyFloor: { fontSize: 28, fontWeight: font.light, color: colors.text, letterSpacing: -0.5 },
+
+  pushCard: { borderWidth: 1, borderColor: colors.border, borderRadius: radius, padding: 20, gap: 8 },
+  pushTitle: { fontSize: 16, fontWeight: font.medium, color: colors.text },
+
+  list: { backgroundColor: colors.card, borderRadius: radius, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 20 },
+  floorRow: { flexDirection: 'row', gap: 18, paddingVertical: 18 },
+  divider: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  floorNumberCol: { width: 44, alignItems: 'flex-start' },
+  floorNumber: { fontSize: 34, fontWeight: font.light, color: colors.text, lineHeight: 38, letterSpacing: -1 },
+  floorWord: { fontSize: 11, color: colors.faint, letterSpacing: 0.6, textTransform: 'uppercase' },
+  floorBody: { flex: 1, gap: 8, paddingTop: 4 },
+  machines: { fontSize: 12, color: colors.faint },
+  holder: { fontSize: 15, color: colors.text, fontWeight: font.medium },
+  action: { alignSelf: 'flex-start', marginTop: 2 },
+
+  row: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   flex: { flex: 1 },
 });
