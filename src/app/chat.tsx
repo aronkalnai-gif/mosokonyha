@@ -49,8 +49,6 @@ export default function Chat() {
     }
   };
 
-  const presets = [t('presetSwap'), t('presetWhen'), t('presetTell')];
-
   if (!registered) {
     return (
       <View style={styles.page}>
@@ -92,20 +90,6 @@ export default function Chat() {
       </ScrollView>
 
       <View style={styles.composer}>
-        {messages.length === 0 && (
-          <View style={styles.presets}>
-            {presets.map((p) => (
-              <Pressable
-                key={p}
-                onPress={() => submit(p)}
-                accessibilityRole="button"
-                style={({ pressed }) => [styles.preset, pressed && { opacity: 0.6 }]}
-              >
-                <Text style={styles.presetText}>{p}</Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
         {error && <Text style={styles.error}>{error}</Text>}
         <View style={styles.inputRow}>
           <TextInput
@@ -151,9 +135,6 @@ const styles = StyleSheet.create({
   mineText: { color: colors.primaryText },
   meta: { fontSize: 11, color: colors.faint, fontVariant: ['tabular-nums'] },
   composer: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 16, gap: 10, borderTopWidth: 1, borderTopColor: colors.border },
-  presets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  preset: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: colors.card },
-  presetText: { fontSize: 14, color: colors.text },
   error: { color: colors.danger, fontSize: 13 },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   input: {
