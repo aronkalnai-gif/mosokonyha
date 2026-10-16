@@ -100,7 +100,7 @@ const hu = {
   qrTitle: 'Recepció',
   qrReturnIntro: 'Nálad van a(z) {floor}. emeleti kulcs.',
   qrPickIntro: 'Melyik emelet kulcsát viszed el?',
-  qrTakenBy: 'Foglalt – {name}',
+  qrNoneFree: 'Most minden kulcs foglalt. A kezdőlapon kérhetsz értesítést, ha valamelyik felszabadul.',
   qrInvalid: 'Ez a link nem érvényes. Olvasd be újra a recepción lévő QR-kódot.',
   cameraFailed: 'Nem sikerült elindítani a kamerát. Olvasd be a QR-kódot a telefonod kamerájával – az megnyitja ezt az oldalt.',
 
@@ -276,7 +276,7 @@ const en: Dict = {
   qrTitle: 'Reception',
   qrReturnIntro: 'You have the key of floor {floor}.',
   qrPickIntro: 'Which floor key are you taking?',
-  qrTakenBy: 'Taken – {name}',
+  qrNoneFree: 'All keys are taken right now. On the main page you can ask to be notified when one is free.',
   qrInvalid: 'This link is not valid. Scan the QR code at the reception again.',
   cameraFailed: "Couldn't start the camera. Scan the QR code with your phone's camera instead – it opens this page.",
 
