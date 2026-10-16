@@ -539,6 +539,76 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
+-- Messages between users ("could we swap keys after you finish?")
+-- ---------------------------------------------------------------------------
+
+-- Sent only through public.send_message. Names and rooms are copied in, so
+-- each side sees who they are talking to without reading others' profiles.
+-- Kept for 14 days (see the cron job at the end).
+create table public.messages (
+  id             bigint generated always as identity primary key,
+  sender_id      uuid not null references public.profiles on delete cascade,
+  recipient_id   uuid not null references public.profiles on delete cascade,
+  sender_name    text not null,
+  sender_room    text,
+  recipient_name text not null,
+  recipient_room text,
+  floor          smallint check (floor between 1 and 6),
+  body           text not null check (char_length(body) between 1 and 500),
+  created_at     timestamptz not null default now(),
+  read_at        timestamptz
+);
+create index messages_recipient on public.messages (recipient_id, created_at);
+create index messages_sender on public.messages (sender_id, created_at);
+
+alter table public.messages enable row level security;
+create policy "read own conversations" on public.messages
+  for select to authenticated
+  using (sender_id = (select auth.uid()) or recipient_id = (select auth.uid()));
+-- The recipient may mark messages as read, nothing else.
+create policy "mark received messages read" on public.messages
+  for update to authenticated
+  using (recipient_id = (select auth.uid()))
+  with check (recipient_id = (select auth.uid()));
+revoke insert, update, delete on public.messages from anon, authenticated;
+grant update (read_at) on public.messages to authenticated;
+
+create function public.send_message(p_recipient uuid, p_body text, p_floor int default null)
+returns public.messages
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_uid  uuid := auth.uid();
+  v_me   public.profiles;
+  v_them public.profiles;
+  v_body text := btrim(coalesce(p_body, ''));
+  v_row  public.messages;
+begin
+  select * into v_me from public.profiles where id = v_uid and registered_at is not null;
+  if not found then raise exception 'not_registered'; end if;
+  if p_recipient = v_uid then raise exception 'cannot_message_self'; end if;
+  select * into v_them from public.profiles where id = p_recipient and registered_at is not null;
+  if not found then raise exception 'unknown_recipient'; end if;
+  if char_length(v_body) not between 1 and 500 then raise exception 'invalid_message'; end if;
+  if (select count(*) from public.messages
+       where sender_id = v_uid and created_at > now() - interval '1 hour') >= 30 then
+    raise exception 'too_many_messages';
+  end if;
+
+  insert into public.messages (sender_id, recipient_id, sender_name, sender_room,
+                               recipient_name, recipient_room, floor, body)
+  values (v_uid, p_recipient, v_me.display_name, v_me.room,
+          v_them.display_name, v_them.room, p_floor, v_body)
+  returning * into v_row;
+
+  -- Push notification to the recipient: "Kovács Bence · 107: ...".
+  insert into private.push_outbox (user_id, kind, ref, title, body, url, send_at)
+  values (p_recipient, 'message', v_row.id::text,
+          v_me.display_name || coalesce(' · ' || v_me.room, ''),
+          left(v_body, 140), '/chat?with=' || v_uid, now());
+  return v_row;
+end $$;
+
+-- ---------------------------------------------------------------------------
 -- Permissions, realtime, cron
 -- ---------------------------------------------------------------------------
 
@@ -550,7 +620,8 @@ grant execute on function public.register(text, text, text),
                           public.return_key(text),
                           public.admin_force_return(int),
                           public.overtime_fee(timestamptz, timestamptz),
-                          public.save_push_subscription(text, text, text)
+                          public.save_push_subscription(text, text, text),
+                          public.send_message(uuid, text, int)
   to authenticated;
 grant execute on function public.claim_due_pushes(),
                           public.delete_push_subscription(text)
@@ -560,7 +631,7 @@ grant execute on function public.claim_due_pushes(),
 do $$
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
-    alter publication supabase_realtime add table public.floor_status, public.floor_board;
+    alter publication supabase_realtime add table public.floor_status, public.floor_board, public.messages;
   end if;
 end $$;
 
@@ -569,5 +640,7 @@ do $$
 begin
   if exists (select 1 from pg_extension where extname = 'pg_cron') then
     perform cron.schedule('send-pushes', '15 seconds', 'select private.kick_push_sender()');
+    perform cron.schedule('delete-old-messages', '17 4 * * *',
+                          $c$delete from public.messages where created_at < now() - interval '14 days'$c$);
   end if;
 end $$;

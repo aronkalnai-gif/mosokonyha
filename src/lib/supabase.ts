@@ -54,6 +54,20 @@ export type Profile = {
   is_admin: boolean;
 };
 
+export type Message = {
+  id: number;
+  sender_id: string;
+  recipient_id: string;
+  sender_name: string;
+  sender_room: string | null;
+  recipient_name: string;
+  recipient_room: string | null;
+  floor: number | null;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+};
+
 export type Settings = {
   key_minutes: number;
   fee_huf: number;

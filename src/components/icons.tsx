@@ -52,3 +52,26 @@ export function SettingsIcon({ color = colors.text }: { color?: string }) {
     </View>
   );
 }
+
+/** A speech bubble: the messages icon. */
+export function ChatIcon({ color = colors.text }: { color?: string }) {
+  return (
+    <View style={{ width: 22, height: 20, padding: 2 }}>
+      <View style={{ width: 18, height: 13, borderWidth: 1.5, borderColor: color, borderRadius: 5 }} />
+      <View
+        style={{
+          position: 'absolute',
+          left: 6,
+          top: 13,
+          width: 6,
+          height: 6,
+          borderLeftWidth: 1.5,
+          borderBottomWidth: 1.5,
+          borderColor: color,
+          backgroundColor: colors.bg,
+          transform: [{ rotate: '-45deg' }],
+        }}
+      />
+    </View>
+  );
+}

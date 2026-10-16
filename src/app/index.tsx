@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDialog } from '../components/Dialog';
-import { SettingsIcon } from '../components/icons';
+import { ChatIcon, SettingsIcon } from '../components/icons';
 import { KeyProgress } from '../components/KeyProgress';
 import { Button, Eyebrow, Muted, Status } from '../components/ui';
 import { errorText, useI18n } from '../lib/i18n';
@@ -16,11 +16,13 @@ import { useWatch } from '../lib/useWatch';
 import { FavoriteBanner } from '../components/FavoriteBanner';
 import { useAuth } from '../state/auth';
 import { ServerError, useLaundry } from '../state/laundry';
+import { useMessages } from '../state/messages';
 
 export default function Home() {
   const { t } = useI18n();
   const { floors, myFloor, settings, refresh, loaded } = useLaundry();
-  const { loggedIn } = useAuth();
+  const { loggedIn, registered } = useAuth();
+  const { unreadTotal } = useMessages();
   const now = useNow(1000);
   const [refreshing, setRefreshing] = useState(false);
   const freeCount = floors.filter((f) => !f.holder_id).length;
@@ -49,6 +51,22 @@ export default function Home() {
           {!loggedIn && (
             <Pressable onPress={() => router.push('/login')} hitSlop={10} style={styles.loginLink} accessibilityRole="link">
               <Text style={styles.loginText}>{t('loginTab')}</Text>
+            </Pressable>
+          )}
+          {registered && (
+            <Pressable
+              onPress={() => router.push('/messages')}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={unreadTotal ? t('messagesUnread', { n: unreadTotal }) : t('messages')}
+              style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.6 }]}
+            >
+              <ChatIcon />
+              {unreadTotal > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{unreadTotal}</Text>
+                </View>
+              )}
             </Pressable>
           )}
           <Pressable
@@ -158,6 +176,25 @@ function FloorRow({ status, now, last }: { status: FloorStatus; now: number; las
               onPress={onWatch}
               loading={busy}
             />
+            {/* Real holder (names are visible): you can write to them. */}
+            {status.holder_id && status.holder_name && (
+              <Button
+                small
+                variant="secondary"
+                title={t('message')}
+                onPress={() =>
+                  router.push({
+                    pathname: '/chat',
+                    params: {
+                      with: status.holder_id!,
+                      floor: String(status.floor),
+                      name: status.holder_name ?? '',
+                      room: status.holder_room ?? '',
+                    },
+                  })
+                }
+              />
+            )}
             {profile?.is_admin && <Button small variant="danger" title={t('forceReturn')} onPress={onForce} />}
           </View>
         )}
@@ -192,6 +229,19 @@ const styles = StyleSheet.create({
   title: { fontSize: 34, fontWeight: font.light, color: colors.text, letterSpacing: -0.8 },
   summary: { fontSize: 15, color: colors.muted },
   iconButton: { padding: 8, marginTop: 6, borderRadius: 12 },
+  badge: {
+    position: 'absolute',
+    top: 2,
+    right: 0,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: font.semibold },
   loginLink: { paddingVertical: 10, paddingHorizontal: 6, marginTop: 6 },
   loginText: { fontSize: 14, color: colors.text, fontWeight: font.medium },
 

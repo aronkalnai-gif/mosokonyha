@@ -10,6 +10,7 @@ import { registerServiceWorker } from '../lib/push';
 import { colors, font } from '../lib/theme';
 import { AuthProvider, useAuth } from '../state/auth';
 import { LaundryProvider } from '../state/laundry';
+import { MessagesProvider } from '../state/messages';
 import { TimersProvider } from '../state/timers';
 
 rememberQrFromUrl();
@@ -27,8 +28,10 @@ export default function RootLayout() {
           <AuthProvider>
             <LaundryProvider>
               <TimersProvider>
+                <MessagesProvider>
                 <StatusBar style="dark" />
                 <Routes />
+                </MessagesProvider>
               </TimersProvider>
             </LaundryProvider>
           </AuthProvider>
@@ -84,6 +87,8 @@ function Routes() {
       <Stack.Screen name="room" options={{ title: '' }} />
       <Stack.Screen name="settings" options={{ title: '' }} />
       <Stack.Screen name="login" options={{ title: '' }} />
+      <Stack.Screen name="messages" options={{ title: '' }} />
+      <Stack.Screen name="chat" options={{ title: '' }} />
     </Stack>
   );
 }
